@@ -24,28 +24,22 @@ eval set -- "$PARSED"
 # now enjoy the options in order and nicely split until we see --
 while true; do
     case "$1" in
-        -p|--port)
-            p="$p -p $2"
+        -p|--password)
+            p="$2"
             shift 2
             ;;
-        -v|--volume)
-            v="$v -v $2"
+        -j|--jupyter)
+            j="$2"
             shift 2
             ;;
-        -e|--env)
-            e="$e -e $2"
+        -s|--ssh)
+            s="$2"
             shift 2
             ;;
-        -s|--ssh-key)
-            key="$2"
-            s=y
+        -b|--tensorboard)
+            t="$2"
             shift 2
             ;;
-        --name)
-            n="--name $2"
-            name="$2"
-            shift 2
-	        ;;
         --)
             shift
             break
@@ -59,23 +53,14 @@ done
 
 # handle non-option arguments
 if [[ $# -ne 1 ]]; then
-    echo "$0: A tag is required."
+    echo "$0: A name is required."
     exit 4
 fi
 
-# Stop and remove if it already exists
-docker stop $name &>/dev/null
-docker rm $name &>/dev/null
+RUNPATH=$(realpath $(dirname "$0")/..)
 
-# Execute docker detached
-docker run --runtime=nvidia -tdi $n $p $v $e $1
-
-if [[ $? -ne 0 ]]; then
-    echo "Fatal, could not start docker"
-    exit 1
-fi
-
-# If ssh was active
-if [[ $s == y ]]; then
-    docker exec -i $name /bin/bash -c "cat  >> ~/.ssh/authorized_keys" < $key
+if [ -f $RUNPATH/run_files/run_$0 ]
+then
+    echo "This user already exists"
+    exit 5
 fi
