@@ -6,8 +6,8 @@ if [[ $? -ne 4 ]]; then
     exit 1
 fi
 
-OPTIONS=s:v:p:e:
-LONGOPTIONS=ssh-key:,volume:,port:,env:,name:
+OPTIONS=i:d:n:p:j:s:b:
+LONGOPTIONS=image:,data:,notebooks:,password:,jupyter:,ssh:,tensorboard:,name:
 
 # -temporarily store output to be able to check for errors
 # -activate advanced mode getopt quoting e.g. via “--options”
@@ -21,9 +21,26 @@ fi
 # use eval with "$PARSED" to properly handle the quoting
 eval set -- "$PARSED"
 
+# Some defaults for parameters
+j="8888"
+s="2200"
+b="6006"
+
 # now enjoy the options in order and nicely split until we see --
 while true; do
     case "$1" in
+        -i|--image)
+            i="$2"
+            shift 2
+            ;;
+        -d|--data)
+            d="$2"
+            shift 2
+            ;;
+        -n|--notebooks)
+            n="$2"
+            shift 2
+            ;;
         -p|--password)
             p="$2"
             shift 2
@@ -37,7 +54,7 @@ while true; do
             shift 2
             ;;
         -b|--tensorboard)
-            t="$2"
+            b="$2"
             shift 2
             ;;
         --)
@@ -57,10 +74,42 @@ if [[ $# -ne 1 ]]; then
     exit 4
 fi
 
-RUNPATH=$(realpath $(dirname "$0")/..)
-
-if [ -f $RUNPATH/run_files/run_$0 ]
+if [ -z "$i" ]
 then
-    echo "This user already exists"
+    echo "Specify docker image name via --image=name"
     exit 5
 fi
+
+if [ -z "$d" ]
+then
+    echo "Specify data directory via --data=/some/path"
+    exit 6
+fi
+
+if [ -z "$n" ]
+then
+    echo "Specify notebooks directory via --notebooks=/some/path"
+    exit 7
+fi
+
+RUNPATH=$(realpath $(dirname "$0")/..)
+USERFILE=$RUNPATH/run_files/run_$1.sh
+if [ -f $USERFILE ]
+then
+    echo "This user already exists"
+    echo "If you want to remove it please run"
+    echo "rm $USERFILE && docker stop $1 && docker rm $1"
+    exit 5
+fi
+
+TEMPLATE=$RUNPATH/run_files/run_template.sh
+TEMPLATE_CONTENTS=$(cat $TEMPLATE)
+echo -e "RAW_PASS=\"$p\"\n$TEMPLATE_CONTENTS" > $USERFILE
+
+sed -i "s/__NAME__/$1/g" $USERFILE
+sed -i "s/__JUPYTER__/$j/g" $USERFILE
+sed -i "s/__TENSORBOARD__/$b/g" $USERFILE
+sed -i "s/__SSH__/$s/g" $USERFILE
+sed -i "s/__IMAGE__/$i/g" $USERFILE
+sed -i "s#__DATA__#$d#g" $USERFILE
+sed -i "s#__NOTEBOOKS__#$n#g" $USERFILE
