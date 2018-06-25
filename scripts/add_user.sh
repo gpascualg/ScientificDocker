@@ -82,12 +82,16 @@ if [ -z "$d" ]
 then
     echo "Specify data directory via --data=/some/path"
     exit 6
+else
+    d=$(realpath $d)
 fi
 
 if [ -z "$n" ]
 then
     echo "Specify notebooks directory via --notebooks=/some/path"
     exit 7
+else
+    n=$(realpath $n)
 fi
 
 USERFILE=$RUNPATH/run_files/run_$USERNAME.sh
