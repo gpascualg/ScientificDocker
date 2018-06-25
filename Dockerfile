@@ -48,7 +48,7 @@ RUN echo "startup --batch" >>/etc/bazel.bazelrc && \
 
 # Get tensorflow #
 ##################
-RUN git clone --branch=r1.8 --depth=1 https://github.com/tensorflow/tensorflow
+RUN git clone --branch=r1.9 --depth=1 https://github.com/tensorflow/tensorflow
 WORKDIR tensorflow
 
 ## Hack to make tensorflow build process use non-standard python location
@@ -159,7 +159,8 @@ RUN chmod +x /opt/anaconda/run_jupyter.sh
 # SSH #
 #######
 
-RUN apt-get install -y openssh-server && \
+RUN apt-get update && \
+	apt-get install -y openssh-server && \
 	mkdir /var/run/sshd && \
 	mkdir -p  ~/.ssh && \
 	chmod 700 ~/.ssh && \
@@ -168,6 +169,25 @@ RUN apt-get install -y openssh-server && \
 
 EXPOSE 22
 
+ENV NODE_OPTIONS=--max-old-space-size=4096
+
+# Jupyter lab
+RUN conda install -y jupyterlab=0.31.12 && \
+	conda install -y nodejs && \
+	jupyter serverextension enable --py jupyterlab --sys-prefix && \
+	jupyter labextension install @jupyter-widgets/jupyterlab-manager@0.34 && \
+	conda update -y -c conda-forge ipywidgets
+
+# Do not directly kill processes for god's sake!
+RUN sed -i -e "s/content = dict(restart=restart)/content = dict(restart=restart)\n        self.signal_kernel(signal.SIGTERM)/" /opt/anaconda/lib/python3.6/site-packages/jupyter_client/manager.py
+
+# Jupyter lab coranos
+RUN cd /tmp && \
+	git clone https://github.com/jupyterlab/jupyterlab-monaco && \
+	cd jupyterlab-monaco && \
+	npm install && \
+	npm run build && \
+	jupyter labextension link .
 
 # Entry point #
 ###############

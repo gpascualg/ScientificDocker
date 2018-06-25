@@ -27,7 +27,7 @@ def main():
     parser.add_argument('--opencl', action='store_true')
     parser.add_argument('--ssh', action='store_true')
     parser.add_argument('--push', action='store_true')
-    parser.add_argument('--no-jupyter-lab', default=True, action='store_false')
+    parser.add_argument('--no-jupyter-lab', default=False, action='store_true')
     parser.add_argument('--half-precision', action='store_true')
 
     args = parser.parse_args()

@@ -250,7 +250,8 @@ RUN chmod +x /opt/anaconda/run_jupyter.sh
 #######
 [[if ssh]]
 
-RUN apt-get install -y openssh-server && \
+RUN apt-get update && \
+	apt-get install -y openssh-server && \
 	mkdir /var/run/sshd && \
 	mkdir -p  ~/.ssh && \
 	chmod 700 ~/.ssh && \
@@ -261,7 +262,7 @@ EXPOSE 22
 [[endif]]
 
 [[if jupyter_lab]]
-export NODE_OPTIONS=--max-old-space-size=4096
+ENV NODE_OPTIONS=--max-old-space-size=4096
 
 # Jupyter lab
 RUN conda install -y jupyterlab=0.31.12 && \
