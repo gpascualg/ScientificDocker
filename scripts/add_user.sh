@@ -66,6 +66,16 @@ if [[ $# -ne 1 ]]; then
 fi
 
 USERNAME=$1
+USERFILE=$RUNPATH/run_files/run_$USERNAME.sh
+SERVER_IP=$(ip route get 1 | awk '{print $NF;exit}')
+
+if [ -f $USERFILE ]
+then
+    echo "This user already exists"
+    echo "If you want to remove it please run"
+    echo "$RUNPATH/scripts/delete_user.sh $USERNAME"
+    exit 5
+fi
 
 if [ -z "$i" ]
 then
@@ -94,15 +104,6 @@ else
     n=$(realpath $n)
 fi
 
-USERFILE=$RUNPATH/run_files/run_$USERNAME.sh
-if [ -f $USERFILE ]
-then
-    echo "This user already exists"
-    echo "If you want to remove it please run"
-    echo "$RUNPATH/scripts/delete_user.sh $USERNAME"
-    exit 5
-fi
-
 echo "Building user <$USERNAME> with the following options:"
 echo -e "\tJupyter notebooks port: $j"
 echo -e "\tTensorboard port: $b"
@@ -126,7 +127,7 @@ then
     echo -e "\t1) First time only, run"
     echo -e "\t\tchmod 600 $USERNAME"
     echo -e "\t2) Anytime after 1)"
-    echo -e "\t\tssh $(ip route get 1 | awk '{print $NF;exit}'):$s -i $USERNAME"
+    echo -e "\t\tssh $SERVER_IP:$s -i $USERNAME"
     if [ ! -z "$p" ]; then
         echo -e "\tSame password as specified in this command"
     fi
@@ -146,6 +147,16 @@ sed -i "s#__DATA__#$d#g" $USERFILE
 sed -i "s#__NOTEBOOKS__#$n#g" $USERFILE
 
 chmod +x $USERFILE
-
 echo ""
-echo "User created"
+
+if ! docker stats --no-stream &>/dev/null
+then
+    echo "User has no permission to start docker containers, please manually run"
+    echo -e "\tsudo $USERFILE"
+    echo "Once done, notebooks server is available at http://$SERVER_IP:$j"
+    exit 3
+fi
+
+echo "User created, starting container now"
+$USERFILE
+echo "Done, instruct user to go to http://$SERVER_IP:$j"
