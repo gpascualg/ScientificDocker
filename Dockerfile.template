@@ -23,13 +23,13 @@ RUN apt-get update && \
 # Get anaconda #
 ################
 [[if python_version27]]
-RUN curl -OL https://repo.continuum.io/archive/Anaconda2-5.0.1-Linux-x86_64.sh && \
-	bash Anaconda2-5.0.1-Linux-x86_64.sh -b -p /opt/anaconda && \
-	rm Anaconda2-5.0.1-Linux-x86_64.sh
+RUN curl -OL https://repo.continuum.io/archive/Anaconda2-5.2.0-Linux-x86_64.sh && \
+	bash Anaconda2-5.2.0-Linux-x86_64.sh -b -p /opt/anaconda && \
+	rm Anaconda2-5.2.0-Linux-x86_64.sh
 [[else]]
-RUN curl -OL https://repo.continuum.io/archive/Anaconda3-5.0.1-Linux-x86_64.sh && \
-	bash Anaconda3-5.0.1-Linux-x86_64.sh -b -p /opt/anaconda && \
-	rm Anaconda3-5.0.1-Linux-x86_64.sh
+RUN curl -OL https://repo.continuum.io/archive/Anaconda3-5.2.0-Linux-x86_64.sh && \
+	bash Anaconda3-5.2.0-Linux-x86_64.sh -b -p /opt/anaconda && \
+	rm Anaconda3-5.2.0-Linux-x86_64.sh
 [[endif]]
 
 ## Export path
@@ -96,11 +96,24 @@ RUN chmod +x configure && \
 	sed -i -e '3,4d' configure && \
 	./configure
 
+# Finds optimal GCC flags
 [[if use_cuda]]
 RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
-	bazel build -s  --config=opt --config=cuda --verbose_failures --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0" --jobs=$(grep -c '^processor' /proc/cpuinfo) //tensorflow/tools/pip_package:build_pip_package
+	bazel build -s \
+		$(gcc -msse4.1 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-msse4.1") \
+		$(gcc -msse4.2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-msse4.2") \
+		$(gcc -mavx -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-mavx") \
+		$(gcc -mavx2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-mavx2") \
+	    --config=opt --config=cuda --verbose_failures --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0" \
+		--jobs=$(grep -c '^processor' /proc/cpuinfo) //tensorflow/tools/pip_package:build_pip_package
 [[else]]
-RUN bazel build -s --config=opt --verbose_failures //tensorflow/tools/pip_package:build_pip_package
+	RUN bazel build -s \
+		$(gcc -msse4.1 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-msse4.1") \
+		$(gcc -msse4.2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-msse4.2") \
+		$(gcc -mavx -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-mavx") \
+		$(gcc -mavx2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-mavx2") \
+		--config=opt --verbose_failures \
+		--jobs=$(grep -c '^processor' /proc/cpuinfo) //tensorflow/tools/pip_package:build_pip_package
 [[endif]]
 
 RUN bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg && \
@@ -115,13 +128,14 @@ WORKDIR ..
 # Fetch RocksDB #
 #################
 RUN git clone https://github.com/facebook/rocksdb.git && \
-	mkdir rocksdb/build
-WORKDIR rocksdb/build
-RUN git checkout v5.3.6 && \
+	mkdir rocksdb/build && \
+	cd rocksdb/build && \
+	git checkout v5.3.6 && \
 	cmake .. && \
-	make -j $(grep -c '^processor' /proc/cpuinfo) && make install
-WORKDIR ../..
-RUN rm -rf rocksdb
+	make -j $(grep -c '^processor' /proc/cpuinfo) && \
+	make install && \
+	cd ../.. && \
+	rm -rf rocksdb
 
 [[if build_caffe]]
 
@@ -189,7 +203,6 @@ ENV PYTHONPATH=/caffe/python:$PYTHONPATH
 ##############################
 RUN pip install tqdm seaborn selenium pandas==0.19.2 keras
 
-
 # Setup PYTHONPATH #
 ####################
 ENV PYTHONPATH=/notebooks:/opt/python-libs
@@ -224,8 +237,10 @@ then \n\
     pip install git+https://www.github.com/farizrahman4u/keras-contrib.git \n\
     git clone -b v3.0 https://github.com/gpascualg/SenseTheFlow.git /opt/python-libs/SenseTheFlow \n\
 fi \n\
+[[if ssh]]
 # SSH \n\
 /usr/sbin/sshd \n\
+[[endif]]
 # Start \n\
 jupyter-notebook /notebooks --allow-root --config=/etc/jupyter-notebook.py &>/dev/null" > /opt/anaconda/run_jupyter.sh.tpl
 RUN sed 's/ *$//' /opt/anaconda/run_jupyter.sh.tpl > /opt/anaconda/run_jupyter.sh
@@ -245,15 +260,27 @@ RUN apt-get install -y openssh-server && \
 EXPOSE 22
 [[endif]]
 
+[[if jupyter_lab]]
+export NODE_OPTIONS=--max-old-space-size=4096
+
 # Jupyter lab
-RUN conda install -y jupyterlab && \
+RUN conda install -y jupyterlab=0.31.12 && \
 	conda install -y nodejs && \
 	jupyter serverextension enable --py jupyterlab --sys-prefix && \
-	jupyter labextension install @jupyter-widgets/jupyterlab-manager@0.33 && \
+	jupyter labextension install @jupyter-widgets/jupyterlab-manager@0.34 && \
 	conda update -y -c conda-forge ipywidgets
 
 # Do not directly kill processes for god's sake!
 RUN sed -i -e "s/content = dict(restart=restart)/content = dict(restart=restart)\n        self.signal_kernel(signal.SIGTERM)/" /opt/anaconda/lib/python3.6/site-packages/jupyter_client/manager.py
+
+# Jupyter lab coranos
+RUN cd /tmp && \
+	git clone https://github.com/jupyterlab/jupyterlab-monaco && \
+	cd jupyterlab-monaco && \
+	npm install && \
+	npm run build && \
+	jupyter labextension link .
+[[endif]]
 
 # Entry point #
 ###############
