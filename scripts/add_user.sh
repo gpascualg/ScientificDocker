@@ -134,10 +134,11 @@ then
     echo "Where $USERNAME is the file above"
 fi
 
+ESCAPED_PASSWORD=$(echo $p | sed 's/\(\/\)/\\\//g')
 TEMPLATE=$RUNPATH/run_files/run_template.sh
-TEMPLATE_CONTENTS=$(cat $TEMPLATE)
-echo -e "RAW_PASS=\"$p\"\n$TEMPLATE_CONTENTS" > $USERFILE
+cp $TEMPLATE $USERFILE
 
+sed -i "s/__RAWPASS__/$ESCAPED_PASSWORD/g" $USERFILE
 sed -i "s/__NAME__/$USERNAME/g" $USERFILE
 sed -i "s/__JUPYTER__/$j/g" $USERFILE
 sed -i "s/__TENSORBOARD__/$b/g" $USERFILE
@@ -151,7 +152,7 @@ echo ""
 
 if ! docker stats --no-stream &>/dev/null
 then
-    echo "User has no permission to start docker containers, please manually run"
+    echo "User does not have permission to start docker containers, please manually run"
     echo -e "\tsudo $USERFILE"
     echo "Once done, notebooks server is available at http://$SERVER_IP:$j"
     exit 3
