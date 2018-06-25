@@ -1,0 +1,16 @@
+*.pyc
+__pycache__/
+.ipynb_checkpoints/
+.vscode/
+.vs/
+
+# No SSH keys should ever be recorded
+ssh_keys/*
+!ssh_keys/.gitkeep
+
+# No run files except for the template
+run_files/*
+!run_files/run_template.sh
+
+# Latest is machine-dependant, do not track it
+latest

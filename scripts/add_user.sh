@@ -1,25 +1,13 @@
 #!/bin/bash
 
-getopt --test > /dev/null
-if [[ $? -ne 4 ]]; then
-    echo "I'm sorry, `getopt --test` failed in this environment."
-    exit 1
-fi
+RUNPATH=$(realpath $(dirname "$0")/..)
+. $RUNPATH/scripts/utils.sh
+check_getopt
 
 OPTIONS=i:d:n:p:j:s:b:
 LONGOPTIONS=image:,data:,notebooks:,password:,jupyter:,ssh:,tensorboard:,name:
-RUNPATH=$(realpath $(dirname "$0")/..)
 
-# -temporarily store output to be able to check for errors
-# -activate advanced mode getopt quoting e.g. via “--options”
-# -pass arguments only via   -- "$@"   to separate them correctly
-PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTIONS --name "$0" -- "$@")
-if [[ $? -ne 0 ]]; then
-    # e.g. $? == 1
-    #  then getopt has complained about wrong arguments to stdout
-    exit 2
-fi
-# use eval with "$PARSED" to properly handle the quoting
+parse_getopt $@
 eval set -- "$PARSED"
 
 # Some defaults for parameters
@@ -71,30 +59,19 @@ while true; do
     esac
 done
 
-negconfirm() {
-    # call with a prompt string or use a default
-    read -r -p "${1:-Are you sure? [y/N]} " response
-    case "$response" in
-        [yY][eE][sS]|[yY])
-            false
-            ;;
-        *)
-            true
-            ;;
-    esac
-}
-
 # handle non-option arguments
 if [[ $# -ne 1 ]]; then
     echo "$0: A name is required."
     exit 4
 fi
 
+USERNAME=$1
+
 if [ -z "$i" ]
 then
-    if [ -f $RUNPATH/scripts/latest ]
+    if [ -f $RUNPATH/latest ]
     then
-        i=$(cat $RUNPATH/scripts/latest)
+        echo "This user will always run with the latest build, take that into account"
     else
         echo "Specify docker image name via --image=name"
         exit 5
@@ -113,16 +90,16 @@ then
     exit 7
 fi
 
-USERFILE=$RUNPATH/run_files/run_$1.sh
+USERFILE=$RUNPATH/run_files/run_$USERNAME.sh
 if [ -f $USERFILE ]
 then
     echo "This user already exists"
     echo "If you want to remove it please run"
-    echo "rm $USERFILE && docker stop $1 && docker rm $1"
+    echo "$RUNPATH/scripts/delete_user.sh $USERNAME"
     exit 5
 fi
 
-echo "Building user <$1> with the following options:"
+echo "Building user <$USERNAME> with the following options:"
 echo -e "\tJupyter notebooks port: $j"
 echo -e "\tTensorboard port: $b"
 echo -e "\tUser password: $p"
@@ -135,11 +112,28 @@ echo -e "\tNotebooks path: $n"
 
 negconfirm && exit 1
 
+# Generate SSH key-pair if needed
+if [ "$ssh" == "true" ]
+then
+    ssh-keygen -b 2048 -t rsa -f $RUNPATH/ssh_keys/$USERNAME -q -N "$p"
+    echo ""
+    echo "Please send $RUNPATH/ssh_keys/$USERNAME to the end-user, it is his SSH login method"
+    echo "Instructions to login are:"
+    echo -e "\t1) First time only, run"
+    echo -e "\t\tchmod 600 $USERNAME"
+    echo -e "\t2) Anytime after 1)"
+    echo -e "\t\tssh $(ip route get 1 | awk '{print $NF;exit}'):$s -i $USERNAME"
+    if [ ! -z "$p" ]; then
+        echo -e "\tSame password as specified in this command"
+    fi
+    echo "Where $USERNAME is the file above"
+fi
+
 TEMPLATE=$RUNPATH/run_files/run_template.sh
 TEMPLATE_CONTENTS=$(cat $TEMPLATE)
 echo -e "RAW_PASS=\"$p\"\n$TEMPLATE_CONTENTS" > $USERFILE
 
-sed -i "s/__NAME__/$1/g" $USERFILE
+sed -i "s/__NAME__/$USERNAME/g" $USERFILE
 sed -i "s/__JUPYTER__/$j/g" $USERFILE
 sed -i "s/__TENSORBOARD__/$b/g" $USERFILE
 sed -i "s/__SSH__/$s/g" $USERFILE

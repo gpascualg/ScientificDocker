@@ -83,7 +83,7 @@ def main():
         print('')
         print("----- DONE -----")
 
-        with open('scripts/latest', 'w') as fp:
+        with open('latest', 'w') as fp:
             fp.write(args.tag)
 
         if args.push:

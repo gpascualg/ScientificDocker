@@ -1,24 +1,13 @@
 #!/bin/bash
 
-getopt --test > /dev/null
-if [[ $? -ne 4 ]]; then
-    echo "I'm sorry, `getopt --test` failed in this environment."
-    exit 1
-fi
+RUNPATH=$(realpath $(dirname "$0")/..)
+. $RUNPATH/scripts/utils.sh
+check_getopt
 
 OPTIONS=s:v:p:e:
 LONGOPTIONS=ssh-key:,volume:,port:,env:,name:
 
-# -temporarily store output to be able to check for errors
-# -activate advanced mode getopt quoting e.g. via “--options”
-# -pass arguments only via   -- "$@"   to separate them correctly
-PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTIONS --name "$0" -- "$@")
-if [[ $? -ne 0 ]]; then
-    # e.g. $? == 1
-    #  then getopt has complained about wrong arguments to stdout
-    exit 2
-fi
-# use eval with "$PARSED" to properly handle the quoting
+parse_getopt $@
 eval set -- "$PARSED"
 
 # now enjoy the options in order and nicely split until we see --
