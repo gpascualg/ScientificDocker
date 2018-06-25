@@ -61,8 +61,8 @@ Please note that deleting is irreversible, it deletes all information on the use
 
 Aside from starting containers, you can use user scripts to stop and restart containers. For example, for `bob`'s container created before, you could
 
-* Stop the container `scripts/run_bob.sh stop`
+* Stop the container `run_files/run_bob.sh stop`
 
-* Restart the container `scripts/run_bob.sh restart`
+* Restart the container `run_files/run_bob.sh restart`
 
-* And start it, either by `scripts/run_bob.sh` or `scripts/run_bob.sh start`
+* And start it, either by `run_files/run_bob.sh` or `run_files/run_bob.sh start`
