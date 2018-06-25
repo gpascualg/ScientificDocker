@@ -83,6 +83,9 @@ def main():
         print('')
         print("----- DONE -----")
 
+        with open('scripts/latest', 'w') as fp:
+            fp.write(args.tag)
+
         if args.push:
             #username = raw_input('Username: ')
             #password = getpass()

@@ -8,6 +8,7 @@ fi
 
 OPTIONS=i:d:n:p:j:s:b:
 LONGOPTIONS=image:,data:,notebooks:,password:,jupyter:,ssh:,tensorboard:,name:
+RUNPATH=$(realpath $(dirname "$0")/..)
 
 # -temporarily store output to be able to check for errors
 # -activate advanced mode getopt quoting e.g. via “--options”
@@ -25,6 +26,7 @@ eval set -- "$PARSED"
 j="8888"
 s="2200"
 b="6006"
+ssh="false"
 
 # now enjoy the options in order and nicely split until we see --
 while true; do
@@ -51,6 +53,7 @@ while true; do
             ;;
         -s|--ssh)
             s="$2"
+            ssh="true"
             shift 2
             ;;
         -b|--tensorboard)
@@ -68,6 +71,19 @@ while true; do
     esac
 done
 
+negconfirm() {
+    # call with a prompt string or use a default
+    read -r -p "${1:-Are you sure? [y/N]} " response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            false
+            ;;
+        *)
+            true
+            ;;
+    esac
+}
+
 # handle non-option arguments
 if [[ $# -ne 1 ]]; then
     echo "$0: A name is required."
@@ -76,8 +92,13 @@ fi
 
 if [ -z "$i" ]
 then
-    echo "Specify docker image name via --image=name"
-    exit 5
+    if [ -f $RUNPATH/scripts/latest ]
+    then
+        i=$(cat $RUNPATH/scripts/latest)
+    else
+        echo "Specify docker image name via --image=name"
+        exit 5
+    fi
 fi
 
 if [ -z "$d" ]
@@ -92,7 +113,6 @@ then
     exit 7
 fi
 
-RUNPATH=$(realpath $(dirname "$0")/..)
 USERFILE=$RUNPATH/run_files/run_$1.sh
 if [ -f $USERFILE ]
 then
@@ -101,6 +121,19 @@ then
     echo "rm $USERFILE && docker stop $1 && docker rm $1"
     exit 5
 fi
+
+echo "Building user <$1> with the following options:"
+echo -e "\tJupyter notebooks port: $j"
+echo -e "\tTensorboard port: $b"
+echo -e "\tUser password: $p"
+echo -e "\tSSH support: $ssh"
+if [ "$ssh" == "true" ]; then
+    echo -e "\t\tAt port: $s"
+fi
+echo -e "\tData path: $d"
+echo -e "\tNotebooks path: $n"
+
+negconfirm && exit 1
 
 TEMPLATE=$RUNPATH/run_files/run_template.sh
 TEMPLATE_CONTENTS=$(cat $TEMPLATE)
@@ -113,3 +146,8 @@ sed -i "s/__SSH__/$s/g" $USERFILE
 sed -i "s/__IMAGE__/$i/g" $USERFILE
 sed -i "s#__DATA__#$d#g" $USERFILE
 sed -i "s#__NOTEBOOKS__#$n#g" $USERFILE
+
+chmod +x $USERFILE
+
+echo ""
+echo "User created"
