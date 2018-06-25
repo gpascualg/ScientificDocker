@@ -38,6 +38,8 @@ Additional parameters might be supplied:
 
 * `--ssh=PORT` to indicate SSH support and the port. It will automatically generate a keypair under the folder `ssh_keys` and give you instructions on how to proceed
 
+* `--image=DOCKER_IMAGE` to anchor the user to a specific docker image. Otherwise, the user will always run with the latest built image. `DOCKER_IMAGE` might be any valid docker tag, for example `deepstack`, `deepstack:gpu`, `deepstack:gpu-tf1.8`, etc. as long as the corresponding image exists.
+
 ## Deleting users
 
 The simplest way is to run the following command
