@@ -79,7 +79,7 @@ def main():
 
                 fout.write(line)
 
-    if subprocess.call(['nvidia-docker', 'build', '-t', args.tag, args.dir]) == 0:
+    if subprocess.call(['docker', 'build', '-t', args.tag, args.dir]) == 0:
         print('')
         print("----- DONE -----")
 

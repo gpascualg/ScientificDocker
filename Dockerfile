@@ -8,16 +8,13 @@ RUN apt-get update && \
 	apt-get install -y curl bzip2 software-properties-common zip g++ unzip cmake vim \
 		libxrender1 libfontconfig1 git \
 		swig pkg-config openjdk-8-jdk-headless autoconf locate build-essential \
-                cuda-command-line-tools-9-0 cuda-cublas-dev-9-0 cuda-cudart-dev-9-0 \
-		cuda-cufft-dev-9-0 cuda-curand-dev-9-0 cuda-cusolver-dev-9-0 \
-		cuda-cusparse-dev-9-0 libcudnn7=7.0.5.15-1+cuda9.0 libcudnn7-dev=7.0.5.15-1+cuda9.0 \
 		libpng12-dev libfreetype6-dev libzmq3-dev zlib1g-dev
 
 # Get anaconda #
 ################
-RUN curl -OL https://repo.continuum.io/archive/Anaconda3-5.0.1-Linux-x86_64.sh && \
-	bash Anaconda3-5.0.1-Linux-x86_64.sh -b -p /opt/anaconda && \
-	rm Anaconda3-5.0.1-Linux-x86_64.sh
+RUN curl -OL https://repo.continuum.io/archive/Anaconda3-5.2.0-Linux-x86_64.sh && \
+	bash Anaconda3-5.2.0-Linux-x86_64.sh -b -p /opt/anaconda && \
+	rm Anaconda3-5.2.0-Linux-x86_64.sh
 
 ## Export path
 ENV PATH=/opt/anaconda/bin:/root/bin:/usr/local/bin:$PATH \
@@ -43,15 +40,15 @@ VOLUME ["/data"]
 # 0.5.4 was working
 RUN echo "startup --batch" >>/etc/bazel.bazelrc && \
         echo "build --spawn_strategy=standalone --genrule_strategy=standalone" >>/etc/bazel.bazelrc && \
-	curl -O -L https://github.com/bazelbuild/bazel/releases/download/0.8.0/bazel-0.8.0-installer-linux-x86_64.sh && \
-	chmod +x bazel-0.8.0-installer-linux-x86_64.sh && \
-	./bazel-0.8.0-installer-linux-x86_64.sh && \
-	rm ./bazel-0.8.0-installer-linux-x86_64.sh
+	curl -O -L https://github.com/bazelbuild/bazel/releases/download/0.11.0/bazel-0.11.0-installer-linux-x86_64.sh && \
+	chmod +x bazel-0.11.0-installer-linux-x86_64.sh && \
+	./bazel-0.11.0-installer-linux-x86_64.sh && \
+	rm ./bazel-0.11.0-installer-linux-x86_64.sh
 
 
 # Get tensorflow #
 ##################
-RUN git clone --branch=r1.5 --depth=1 https://github.com/tensorflow/tensorflow
+RUN git clone --branch=r1.8 --depth=1 https://github.com/tensorflow/tensorflow
 WORKDIR tensorflow
 
 ## Hack to make tensorflow build process use non-standard python location
@@ -82,8 +79,15 @@ RUN chmod +x configure && \
 	sed -i -e '3,4d' configure && \
 	./configure
 
+# Finds optimal GCC flags
 RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
-	bazel build -s  --config=opt --config=cuda --verbose_failures --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0" --jobs=$(grep -c '^processor' /proc/cpuinfo) //tensorflow/tools/pip_package:build_pip_package
+	bazel build -s \
+		$(gcc -msse4.1 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-msse4.1") \
+		$(gcc -msse4.2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-msse4.2") \
+		$(gcc -mavx -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-mavx") \
+		$(gcc -mavx2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-mavx2") \
+	    --config=opt --config=cuda --verbose_failures --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0" \
+		--jobs=$(grep -c '^processor' /proc/cpuinfo) //tensorflow/tools/pip_package:build_pip_package
 
 RUN bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg && \
 	pip install /tmp/tensorflow_pkg/$(ls /tmp/tensorflow_pkg)
@@ -96,20 +100,20 @@ WORKDIR ..
 # Fetch RocksDB #
 #################
 RUN git clone https://github.com/facebook/rocksdb.git && \
-	mkdir rocksdb/build
-WORKDIR rocksdb/build
-RUN git checkout v5.3.6 && \
+	mkdir rocksdb/build && \
+	cd rocksdb/build && \
+	git checkout v5.3.6 && \
 	cmake .. && \
-	make -j $(grep -c '^processor' /proc/cpuinfo) && make install
-WORKDIR ../..
-RUN rm -rf rocksdb
+	make -j $(grep -c '^processor' /proc/cpuinfo) && \
+	make install && \
+	cd ../.. && \
+	rm -rf rocksdb
 
 
 
 # Install other dependencies #
 ##############################
 RUN pip install tqdm seaborn selenium pandas==0.19.2 keras
-
 
 # Setup PYTHONPATH #
 ####################
@@ -143,7 +147,7 @@ fi \n\
 if [ -n \"\${FETCH_TF_CONTRIB}\" ] \n\
 then \n\
     pip install git+https://www.github.com/farizrahman4u/keras-contrib.git \n\
-    git clone https://github.com/gpascualg/SenseTheFlow.git /opt/python-libs/SenseTheFlow \n\
+    git clone -b v3.0 https://github.com/gpascualg/SenseTheFlow.git /opt/python-libs/SenseTheFlow \n\
 fi \n\
 # SSH \n\
 /usr/sbin/sshd \n\
@@ -164,10 +168,11 @@ RUN apt-get install -y openssh-server && \
 
 EXPOSE 22
 
+
 # Entry point #
 ###############
 # Add Tini
-ENV TINI_VERSION v0.16.1
+ENV TINI_VERSION v0.18.0
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
 RUN chmod +x /tini
 ENTRYPOINT ["/tini", "--"]
