@@ -18,11 +18,12 @@ SCRIPTDIR=__BASEDIR__/scripts
 case "$1" in
     start)
         log_daemon_msg "Starting Dockers" "deepstack-control" || true
-        ${SCRIPTDIR}/run_all.sh
+        ${SCRIPTDIR}/run_all.sh start
         ;;
 
     stop)
-        log_daemon_msg "No stop script yet" "deepstack-control" || true
+        log_daemon_msg "Stopping Dockers" "deepstack-control" || true
+        ${SCRIPTDIR}/run_all.sh stop
         ;;
 
     reload)
@@ -30,11 +31,12 @@ case "$1" in
         ;;
 
     restart)
-        log_daemon_msg "No restart script yet" "deepstack-control" || true
+        log_daemon_msg "Restarting Dockers" "deepstack-control" || true
+        ${SCRIPTDIR}/run_all.sh restart
         ;;
 
     *)
-        log_action_msg "Usage: /etc/init.d/dockercompose {start|stop|restart|reload}" || true
+        log_action_msg "Usage: /etc/init.d/dockercompose {start|stop|restart}" || true
         exit 1
         ;;
 esac

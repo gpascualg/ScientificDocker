@@ -19,7 +19,7 @@ fi
 
 if ! docker stats --no-stream &>/dev/null
 then
-    echo "Could not run docker, please use sudo"
+    echo "User does not have permission to run docker, please use sudo"
     exit 3
 fi
 
