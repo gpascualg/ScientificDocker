@@ -82,10 +82,10 @@ RUN chmod +x configure && \
 # Finds optimal GCC flags
 RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
 	bazel build -s \
-		$(gcc -msse4.1 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-msse4.1") \
-		$(gcc -msse4.2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-msse4.2") \
-		$(gcc -mavx -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-mavx") \
-		$(gcc -mavx2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "-copt=-mavx2") \
+		$(gcc -msse4.1 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-msse4.1") \
+		$(gcc -msse4.2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-msse4.2") \
+		$(gcc -mavx -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-mavx") \
+		$(gcc -mavx2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-mavx2") \
 	    --config=opt --config=cuda --verbose_failures --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0" \
 		--jobs=$(grep -c '^processor' /proc/cpuinfo) //tensorflow/tools/pip_package:build_pip_package
 
