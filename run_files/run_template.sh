@@ -50,7 +50,7 @@ then
         IMAGE_NAME=$(cat $RUNPATH/latest)
     fi
 
-    $RUNPATH/scripts/run_docker.sh --name __NAME__ -s $RUNPATH/ssh_keys/__NAME__.pub -p __JUPYTER__:8888 -p __TENSORBOARD__:6006 -p __SSH__:22 -v __DATA__:/data -v __NOTEBOOKS__:/notebooks -e JUPYTER_PASSWORD='$SHA_PASS' -e FETCH_TF_CONTRIB=1 $IMAGE_NAME
+    $RUNPATH/scripts/run_docker.sh --name __NAME__ -s $RUNPATH/ssh_keys/__NAME__.pub -p __JUPYTER__:8888 -p __TENSORBOARD__:6006 -p __SSH__:22 -v __DATA__:/data -v __NOTEBOOKS__:/notebooks -e JUPYTER_PASSWORD="$SHA_PASS" -e FETCH_TF_CONTRIB=1 $IMAGE_NAME
 
 # Either restart or stop
 else
