@@ -23,7 +23,7 @@ fi
 # Start mode
 if [ "$MODE" == "start" ]
 then
-    if [ -z $(docker ps --filter="name=__NAME__" -q) ]
+    if [ ! -z $(docker ps --filter="name=__NAME__" -q) ]
     then
         echo "This user is already running, either restart or stop it"
         echo -e "\t$0 restart | stop"
