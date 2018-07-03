@@ -182,12 +182,6 @@ RUN conda install -y jupyterlab=0.31.12 && \
 RUN sed -i -e "s/content = dict(restart=restart)/content = dict(restart=restart)\n        self.signal_kernel(signal.SIGTERM)/" /opt/anaconda/lib/python3.6/site-packages/jupyter_client/manager.py
 
 # Jupyter lab coranos
-RUN cd /tmp && \
-	git clone https://github.com/jupyterlab/jupyterlab-monaco && \
-	cd jupyterlab-monaco && \
-	npm install && \
-	npm run build && \
-	jupyter labextension link .
 
 # Entry point #
 ###############

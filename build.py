@@ -28,6 +28,7 @@ def main():
     parser.add_argument('--ssh', action='store_true')
     parser.add_argument('--push', action='store_true')
     parser.add_argument('--no-jupyter-lab', default=False, action='store_true')
+    parser.add_argument('--jupyter-coranos', default=False, action='store_true')
     parser.add_argument('--half-precision', action='store_true')
 
     args = parser.parse_args()
@@ -39,6 +40,7 @@ def main():
         'bazel_version': args.bazel_version,
         'build_caffe': int(args.caffe),
         'jupyter_lab': not bool(args.no_jupyter_lab),
+        'coranos': bool(args.jupyter_coranos),
         'base': 'nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04' if args.gpu else 'ubuntu:16.04',
         'use_cuda': 1 if args.gpu else 0,
         'use_opencl': int(args.opencl),

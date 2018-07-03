@@ -14,3 +14,6 @@ run_files/*
 
 # Latest is machine-dependant, do not track it
 latest
+
+# Build auxiliar output
+nohup.out
