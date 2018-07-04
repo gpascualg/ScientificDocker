@@ -127,7 +127,7 @@ then
     echo -e "\t1) First time only, run"
     echo -e "\t\tchmod 600 $USERNAME"
     echo -e "\t2) Anytime after 1)"
-    echo -e "\t\tssh $SERVER_IP:$s -i $USERNAME"
+    echo -e "\t\tssh root@$SERVER_IP -p $s -i $USERNAME"
     if [ ! -z "$p" ]; then
         echo -e "\tSame password as specified in this command"
     fi
