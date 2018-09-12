@@ -40,15 +40,15 @@ VOLUME ["/data"]
 # 0.5.4 was working
 RUN echo "startup --batch" >>/etc/bazel.bazelrc && \
         echo "build --spawn_strategy=standalone --genrule_strategy=standalone" >>/etc/bazel.bazelrc && \
-	curl -O -L https://github.com/bazelbuild/bazel/releases/download/0.11.0/bazel-0.11.0-installer-linux-x86_64.sh && \
-	chmod +x bazel-0.11.0-installer-linux-x86_64.sh && \
-	./bazel-0.11.0-installer-linux-x86_64.sh && \
-	rm ./bazel-0.11.0-installer-linux-x86_64.sh
+	curl -O -L https://github.com/bazelbuild/bazel/releases/download/0.16.1/bazel-0.16.1-installer-linux-x86_64.sh && \
+	chmod +x bazel-0.16.1-installer-linux-x86_64.sh && \
+	./bazel-0.16.1-installer-linux-x86_64.sh && \
+	rm ./bazel-0.16.1-installer-linux-x86_64.sh
 
 
 # Get tensorflow #
 ##################
-RUN git clone --branch=r1.9 --depth=1 https://github.com/tensorflow/tensorflow
+RUN git clone --branch=r1.10 --depth=1 https://github.com/tensorflow/tensorflow
 WORKDIR tensorflow
 
 ## Hack to make tensorflow build process use non-standard python location
@@ -56,14 +56,31 @@ RUN sed -i \
 	-e "s/^#!\/usr\/bin\/env python$/#!\/opt\/anaconda\/bin\/python/" \
 	third_party/gpus/crosstool/clang/bin/crosstool_wrapper_driver_is_not_gcc.tpl
 
+RUN apt-get install -y libnccl2=2.2.13-1+cuda9.0 libnccl-dev=2.2.13-1+cuda9.0 
+RUN mkdir /usr/local/cuda-9.0/lib &&  \
+    ln -s /usr/lib/x86_64-linux-gnu/libnccl.so.2 /usr/local/cuda/lib/libnccl.so.2 && \
+    ln -s /usr/include/nccl.h /usr/local/cuda/include/nccl.h
+
+# TODO(tobyboyd): Remove after license is excluded from BUILD file.
+RUN gunzip /usr/share/doc/libnccl2/NCCL-SLA.txt.gz && \
+    cp /usr/share/doc/libnccl2/NCCL-SLA.txt /usr/local/cuda/
+
 ## Setup bazel configuration variables
 ENV PYTHON_BIN_PATH=/opt/anaconda/bin/python \
 	USE_DEFAULT_PYTHON_LIB_PATH=1 \
+        LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} \
 	TF_NEED_MKL=1 \
 	TF_DOWNLOAD_MKL=1 \ 
+        TF_NCCL_VERSION=2 \
 	TF_NEED_CUDA=1 \
 	TF_NEED_OPENCL=0 \ 
 	TF_NEED_JEMALLOC=1 \
+        TF_NEED_AWS=0 \
+        TF_NEED_KAFKA=0 \
+        TF_NEED_OPENCL_SYCL=0 \
+        TF_NEED_COMPUTECPP=0 \
+        TF_NEED_TENSORRT=0 \
+        TF_NEED_VERBS=0 \
 	TF_NEED_HDFS=0 \
 	TF_NEED_GDR=0 \
 	TF_NEED_MPI=0 \
