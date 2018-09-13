@@ -8,6 +8,7 @@ MAINTAINER Guillem Pascual <gpascualg93@gmail.com>
 RUN apt-get update && \
 	apt-get install -y curl bzip2 software-properties-common zip g++ unzip cmake vim \
 		libxrender1 libfontconfig1 git \
+		libnccl2=2.2.13-1+cuda9.0 libnccl-dev=2.2.13-1+cuda9.0 \
 		swig pkg-config openjdk-8-jdk-headless autoconf locate build-essential \
 		libpng12-dev libfreetype6-dev libzmq3-dev zlib1g-dev
 [[endif]]
@@ -32,6 +33,7 @@ RUN curl -OL https://repo.continuum.io/archive/Anaconda3-5.2.0-Linux-x86_64.sh &
 	rm Anaconda3-5.2.0-Linux-x86_64.sh
 [[endif]]
 
+
 ## Export path
 ENV PATH=/opt/anaconda/bin:/root/bin:/usr/local/bin:$PATH \
 	LD_LIBRARY_PATH=/usr/local/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/lib64/stubs:$LD_LIBRARY_PATH
@@ -39,8 +41,10 @@ ENV PATH=/opt/anaconda/bin:/root/bin:/usr/local/bin:$PATH \
 ## Configure anaconda
 EXPOSE 8888
 
-# Update conda
-RUN conda install anaconda python pip -y
+# Install other dependencies #
+##############################
+RUN conda install anaconda python pip -y && \
+	pip install tqdm seaborn selenium keras
 
 # Permanent volumnes #
 ######################
@@ -68,36 +72,28 @@ RUN echo "startup --batch" >>/etc/bazel.bazelrc && \
 RUN git clone --branch={{tensorflow_version}} --depth=1 https://github.com/tensorflow/tensorflow
 WORKDIR tensorflow
 
-## Hack to make tensorflow build process use non-standard python location
-RUN sed -i \
-	-e "s/^#!\/usr\/bin\/env python$/#!\/opt\/anaconda\/bin\/python/" \
-	third_party/gpus/crosstool/clang/bin/crosstool_wrapper_driver_is_not_gcc.tpl
-
-RUN apt-get install -y libnccl2=2.2.13-1+cuda9.0 libnccl-dev=2.2.13-1+cuda9.0 
 RUN mkdir /usr/local/cuda-9.0/lib &&  \
     ln -s /usr/lib/x86_64-linux-gnu/libnccl.so.2 /usr/local/cuda/lib/libnccl.so.2 && \
-    ln -s /usr/include/nccl.h /usr/local/cuda/include/nccl.h
-
-# TODO(tobyboyd): Remove after license is excluded from BUILD file.
-RUN gunzip /usr/share/doc/libnccl2/NCCL-SLA.txt.gz && \
+    ln -s /usr/include/nccl.h /usr/local/cuda/include/nccl.h && \
+	gunzip /usr/share/doc/libnccl2/NCCL-SLA.txt.gz && \
     cp /usr/share/doc/libnccl2/NCCL-SLA.txt /usr/local/cuda/
 
 ## Setup bazel configuration variables
 ENV PYTHON_BIN_PATH=/opt/anaconda/bin/python \
 	USE_DEFAULT_PYTHON_LIB_PATH=1 \
-        LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} \
+	LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} \
 	TF_NEED_MKL=1 \
 	TF_DOWNLOAD_MKL=1 \ 
-        TF_NCCL_VERSION=2 \
+	TF_NCCL_VERSION=2 \
 	TF_NEED_CUDA={{use_cuda}} \
 	TF_NEED_OPENCL={{use_opencl}} \ 
 	TF_NEED_JEMALLOC=1 \
-        TF_NEED_AWS=0 \
-        TF_NEED_KAFKA=0 \
-        TF_NEED_OPENCL_SYCL=0 \
-        TF_NEED_COMPUTECPP=0 \
-        TF_NEED_TENSORRT=0 \
-        TF_NEED_VERBS=0 \
+	TF_NEED_AWS=0 \
+	TF_NEED_KAFKA=0 \
+	TF_NEED_OPENCL_SYCL=0 \
+	TF_NEED_COMPUTECPP=0 \
+	TF_NEED_TENSORRT=0 \
+	TF_NEED_VERBS=0 \
 	TF_NEED_HDFS=0 \
 	TF_NEED_GDR=0 \
 	TF_NEED_MPI=0 \
@@ -106,7 +102,7 @@ ENV PYTHON_BIN_PATH=/opt/anaconda/bin/python \
 	TF_NEED_GCP=0 \
 	TF_CUDA_VERSION=9.0 \
 	TF_CUDNN_VERSION=7 \
-        CUDNN_INSTALL_PATH=/usr/lib/x86_64-linux-gnu \
+	CUDNN_INSTALL_PATH=/usr/lib/x86_64-linux-gnu \
 	TF_CUDA_COMPUTE_CAPABILITIES={{compute_capabilities}}
 
 RUN chmod +x configure && \
@@ -215,10 +211,6 @@ ENV PYTHONPATH=/caffe/python:$PYTHONPATH
 
 [[endif]]
 
-
-# Install other dependencies #
-##############################
-RUN pip install tqdm seaborn selenium pandas==0.19.2 keras
 
 # Setup PYTHONPATH #
 ####################
