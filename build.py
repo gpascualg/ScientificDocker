@@ -21,6 +21,7 @@ def main():
     parser.add_argument('--dir', default='.')
     parser.add_argument('--tensorflow', action='store_true')
     parser.add_argument('--tensorflow-version', default='r1.0')
+    parser.add_argument('--tensorflow-generic', action='store_true')
     parser.add_argument('--bazel-version', default='0.16.1')
     parser.add_argument('--caffe', action='store_true')
     parser.add_argument('--gpu', action='store_true')
@@ -35,7 +36,7 @@ def main():
 
     data = {
         'python_version27': int(args.python_version) == 2,
-        'build_tensorflow': int(args.tensorflow),
+        'build_tensorflow': int(args.tensorflow and not args.tensorflow_generic),
         'tensorflow_version': args.tensorflow_version,
         'bazel_version': args.bazel_version,
         'build_caffe': int(args.caffe),

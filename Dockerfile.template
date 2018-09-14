@@ -54,6 +54,11 @@ VOLUME ["/notebooks"]
 RUN mkdir /data
 VOLUME ["/data"]
 
+[[if tensorflow_generic]]
+
+RUN pip install tensorflow
+
+[[endif]]
 [[if build_tensorflow]]
 
 # Get Bazel #
