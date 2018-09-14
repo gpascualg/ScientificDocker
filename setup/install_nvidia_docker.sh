@@ -44,8 +44,8 @@ fi
 if [ "$NVIDIA_COMPATIBLE" -eq "1" ]
 then
     # Install repo and we are ready to go
-    curl -s -L https://nvidia.github.io/nvidia-container-runtime/gpgkey | apt-key add -
-    curl -s -L https://nvidia.github.io/nvidia-container-runtime/$DISTRIBUTION/nvidia-container-runtime.list >/etc/apt/sources.list.d/nvidia-container-runtime.list
+    curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | apt-key add -
+    curl -s -L https://nvidia.github.io/nvidia-docker/$DISTRIBUTION/nvidia-docker.list >/etc/apt/sources.list.d/nvidia-docker.list
     apt-get update
     apt-get install -y nvidia-docker2
 

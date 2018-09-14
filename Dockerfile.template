@@ -56,7 +56,9 @@ VOLUME ["/data"]
 
 [[if tensorflow_generic]]
 
-RUN pip install tensorflow
+RUN pip install --upgrade pip && \
+	conda install -y python=3.6 && \
+	pip install tensorflow-gpu
 
 [[endif]]
 [[if build_tensorflow]]
