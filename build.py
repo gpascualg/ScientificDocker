@@ -36,8 +36,9 @@ def main():
 
     data = {
         'python_version27': int(args.python_version) == 2,
+        'tensorflow_dependencies': int(args.tensorflow or args.tensorflow_generic),
         'build_tensorflow': int(args.tensorflow and not args.tensorflow_generic),
-        'tensorflow_generic', int(args.tensorflow_generic),
+        'tensorflow_generic': int(args.tensorflow_generic),
         'tensorflow_version': args.tensorflow_version,
         'bazel_version': args.bazel_version,
         'build_caffe': int(args.caffe),
