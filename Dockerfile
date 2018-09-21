@@ -7,6 +7,7 @@ MAINTAINER Guillem Pascual <gpascualg93@gmail.com>
 RUN apt-get update && \
 	apt-get install -y curl bzip2 software-properties-common zip g++ unzip cmake vim \
 		libxrender1 libfontconfig1 git \
+		libnccl2=2.2.13-1+cuda9.0 libnccl-dev=2.2.13-1+cuda9.0 \
 		swig pkg-config openjdk-8-jdk-headless autoconf locate build-essential \
 		libpng12-dev libfreetype6-dev libzmq3-dev zlib1g-dev
 
@@ -16,6 +17,7 @@ RUN curl -OL https://repo.continuum.io/archive/Anaconda3-5.2.0-Linux-x86_64.sh &
 	bash Anaconda3-5.2.0-Linux-x86_64.sh -b -p /opt/anaconda && \
 	rm Anaconda3-5.2.0-Linux-x86_64.sh
 
+
 ## Export path
 ENV PATH=/opt/anaconda/bin:/root/bin:/usr/local/bin:$PATH \
 	LD_LIBRARY_PATH=/usr/local/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/lib64/stubs:$LD_LIBRARY_PATH
@@ -23,8 +25,11 @@ ENV PATH=/opt/anaconda/bin:/root/bin:/usr/local/bin:$PATH \
 ## Configure anaconda
 EXPOSE 8888
 
-# Update conda
-RUN conda install anaconda python pip -y
+# Install other dependencies #
+##############################
+RUN conda install anaconda python=3.6 pip -y && \
+	pip install --upgrade pip && \
+	pip install tqdm seaborn selenium keras
 
 # Permanent volumnes #
 ######################
@@ -35,82 +40,7 @@ RUN mkdir /data
 VOLUME ["/data"]
 
 
-# Get Bazel #
-#############
-# 0.5.4 was working
-RUN echo "startup --batch" >>/etc/bazel.bazelrc && \
-        echo "build --spawn_strategy=standalone --genrule_strategy=standalone" >>/etc/bazel.bazelrc && \
-	curl -O -L https://github.com/bazelbuild/bazel/releases/download/0.16.1/bazel-0.16.1-installer-linux-x86_64.sh && \
-	chmod +x bazel-0.16.1-installer-linux-x86_64.sh && \
-	./bazel-0.16.1-installer-linux-x86_64.sh && \
-	rm ./bazel-0.16.1-installer-linux-x86_64.sh
-
-
-# Get tensorflow #
-##################
-RUN git clone --branch=r1.10 --depth=1 https://github.com/tensorflow/tensorflow
-WORKDIR tensorflow
-
-## Hack to make tensorflow build process use non-standard python location
-RUN sed -i \
-	-e "s/^#!\/usr\/bin\/env python$/#!\/opt\/anaconda\/bin\/python/" \
-	third_party/gpus/crosstool/clang/bin/crosstool_wrapper_driver_is_not_gcc.tpl
-
-RUN apt-get install -y libnccl2=2.2.13-1+cuda9.0 libnccl-dev=2.2.13-1+cuda9.0 
-RUN mkdir /usr/local/cuda-9.0/lib &&  \
-    ln -s /usr/lib/x86_64-linux-gnu/libnccl.so.2 /usr/local/cuda/lib/libnccl.so.2 && \
-    ln -s /usr/include/nccl.h /usr/local/cuda/include/nccl.h
-
-# TODO(tobyboyd): Remove after license is excluded from BUILD file.
-RUN gunzip /usr/share/doc/libnccl2/NCCL-SLA.txt.gz && \
-    cp /usr/share/doc/libnccl2/NCCL-SLA.txt /usr/local/cuda/
-
-## Setup bazel configuration variables
-ENV PYTHON_BIN_PATH=/opt/anaconda/bin/python \
-	USE_DEFAULT_PYTHON_LIB_PATH=1 \
-        LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} \
-	TF_NEED_MKL=1 \
-	TF_DOWNLOAD_MKL=1 \ 
-        TF_NCCL_VERSION=2 \
-	TF_NEED_CUDA=1 \
-	TF_NEED_OPENCL=0 \ 
-	TF_NEED_JEMALLOC=1 \
-        TF_NEED_AWS=0 \
-        TF_NEED_KAFKA=0 \
-        TF_NEED_OPENCL_SYCL=0 \
-        TF_NEED_COMPUTECPP=0 \
-        TF_NEED_TENSORRT=0 \
-        TF_NEED_VERBS=0 \
-	TF_NEED_HDFS=0 \
-	TF_NEED_GDR=0 \
-	TF_NEED_MPI=0 \
-	TF_ENABLE_XLA=1 \
-	TF_CUDA_CLANG=0 \
-	TF_NEED_GCP=0 \
-	TF_CUDA_VERSION=9.0 \
-	TF_CUDNN_VERSION=7 \
-        CUDNN_INSTALL_PATH=/usr/lib/x86_64-linux-gnu \
-	TF_CUDA_COMPUTE_CAPABILITIES=3.5,5.2,6.1
-
-RUN chmod +x configure && \
-	sed -i -e '3,4d' configure && \
-	./configure
-
-# Finds optimal GCC flags
-RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
-	bazel build -s \
-		$(gcc -msse4.1 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-msse4.1") \
-		$(gcc -msse4.2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-msse4.2") \
-		$(gcc -mavx -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-mavx") \
-		$(gcc -mavx2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-mavx2") \
-	    --config=opt --config=cuda --verbose_failures --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0" \
-		--jobs=$(grep -c '^processor' /proc/cpuinfo) //tensorflow/tools/pip_package:build_pip_package
-
-RUN bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg && \
-	pip install /tmp/tensorflow_pkg/$(ls /tmp/tensorflow_pkg)
-
-## Back to root
-WORKDIR ..
+RUN pip install tensorflow-gpu
 
 
 
@@ -127,10 +57,6 @@ RUN git clone https://github.com/facebook/rocksdb.git && \
 	rm -rf rocksdb
 
 
-
-# Install other dependencies #
-##############################
-RUN pip install tqdm seaborn selenium pandas==0.19.2 keras
 
 # Setup PYTHONPATH #
 ####################
@@ -164,7 +90,7 @@ fi \n\
 if [ -n \"\${FETCH_TF_CONTRIB}\" ] \n\
 then \n\
     pip install git+https://www.github.com/farizrahman4u/keras-contrib.git \n\
-    git clone -b v3.0 https://github.com/gpascualg/SenseTheFlow.git /opt/python-libs/SenseTheFlow \n\
+    git clone https://github.com/gpascualg/SenseTheFlow.git /opt/python-libs/SenseTheFlow \n\
 fi \n\
 # SSH \n\
 /usr/sbin/sshd \n\
@@ -189,8 +115,12 @@ EXPOSE 22
 ENV NODE_OPTIONS=--max-old-space-size=4096
 
 # Jupyter lab
-RUN conda install -y jupyterlab=0.31.12 && \
-	conda install -y nodejs && \
+RUN conda install -y jupyterlab=0.31.12 nodejs && \
+	echo "\n.p-Widget.jp-OutputPrompt.jp-OutputArea-prompt:empty {\n\
+		padding: 0;\n\
+		border: 0;\n\
+	}" >> /opt/anaconda/lib/python3.6/site-packages/jupyterlab/themes/\@jupyterlab/theme-light-extension/index.css && \
+	jupyter lab build && \
 	jupyter serverextension enable --py jupyterlab --sys-prefix && \
 	jupyter labextension install @jupyter-widgets/jupyterlab-manager@0.34 && \
 	conda update -y -c conda-forge ipywidgets

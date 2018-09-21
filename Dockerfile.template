@@ -43,7 +43,8 @@ EXPOSE 8888
 
 # Install other dependencies #
 ##############################
-RUN conda install anaconda python pip -y && \
+RUN conda install anaconda python=3.6 pip -y && \
+	pip install --upgrade pip && \
 	pip install tqdm seaborn selenium keras
 
 # Permanent volumnes #
@@ -56,9 +57,7 @@ VOLUME ["/data"]
 
 [[if tensorflow_generic]]
 
-RUN pip install --upgrade pip && \
-	conda install -y python=3.6 && \
-	pip install tensorflow-gpu
+RUN pip install tensorflow-gpu
 
 [[endif]]
 [[if build_tensorflow]]
@@ -251,7 +250,7 @@ fi \n\
 if [ -n \"\${FETCH_TF_CONTRIB}\" ] \n\
 then \n\
     pip install git+https://www.github.com/farizrahman4u/keras-contrib.git \n\
-    git clone -b v3.0 https://github.com/gpascualg/SenseTheFlow.git /opt/python-libs/SenseTheFlow \n\
+    git clone https://github.com/gpascualg/SenseTheFlow.git /opt/python-libs/SenseTheFlow \n\
 fi \n\
 [[if ssh]]
 # SSH \n\
@@ -281,8 +280,7 @@ EXPOSE 22
 ENV NODE_OPTIONS=--max-old-space-size=4096
 
 # Jupyter lab
-RUN conda install -y jupyterlab=0.31.12 && \
-	conda install -y nodejs && \
+RUN conda install -y jupyterlab=0.31.12 nodejs && \
 	jupyter serverextension enable --py jupyterlab --sys-prefix && \
 	jupyter labextension install @jupyter-widgets/jupyterlab-manager@0.34 && \
 	conda update -y -c conda-forge ipywidgets
@@ -300,6 +298,13 @@ RUN cd /tmp && \
 	jupyter labextension link .
 [[endif]]
 [[endif]]
+
+# At some point we need
+#.p-Widget.jp-OutputPrompt.jp-OutputArea-prompt:empty {
+#  padding: 0;
+#  border: 0;
+#}
+
 
 # Entry point #
 ###############
