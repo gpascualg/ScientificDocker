@@ -7,14 +7,14 @@ MAINTAINER Guillem Pascual <gpascualg93@gmail.com>
 [[if tensorflow_dependencies]]
 RUN apt-get update && \
 	apt-get install -y curl bzip2 software-properties-common zip g++ unzip cmake vim \
-		libxrender1 libfontconfig1 git lua5.3 lua5.3-dev \
+		libxrender1 libfontconfig1 git lua5.3 lua5.3-dev rsync \
 		swig pkg-config openjdk-8-jdk-headless autoconf locate build-essential \
 		libpng-dev libfreetype6-dev libzmq3-dev zlib1g-dev
 [[endif]]
 [[if build_caffe]]
 RUN apt-get update && \
 	apt-get install -y curl bzip2 software-properties-common zip g++ unzip cmake vim \
-		libxrender1 libfontconfig1 git lua5.3 lua5.3-dev \
+		libxrender1 libfontconfig1 git lua5.3 lua5.3-dev rsync \
 		swig pkg-config libsnappy-dev libhdf5-serial-dev libatlas-base-dev liblmdb-dev \
                 autoconf protobuf-compiler libsm6  && \
         apt-get install --no-install-recommends -y libboost-all-dev
