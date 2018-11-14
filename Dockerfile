@@ -1,4 +1,4 @@
-FROM nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04
+FROM nvidia/cuda:9.2-cudnn7-devel-ubuntu18.04
 MAINTAINER Guillem Pascual <gpascualg93@gmail.com>
 
 # Update + dependencies #
@@ -6,15 +6,16 @@ MAINTAINER Guillem Pascual <gpascualg93@gmail.com>
 
 RUN apt-get update && \
 	apt-get install -y curl bzip2 software-properties-common zip g++ unzip cmake vim \
-		libxrender1 libfontconfig1 git \
+		libxrender1 libfontconfig1 git lua5.3 lua5.3-dev \
 		swig pkg-config openjdk-8-jdk-headless autoconf locate build-essential \
-		libpng12-dev libfreetype6-dev libzmq3-dev zlib1g-dev
+		libpng-dev libfreetype6-dev libzmq3-dev zlib1g-dev
 
 # Get anaconda #
 ################
 RUN curl -OL https://repo.continuum.io/archive/Anaconda3-5.2.0-Linux-x86_64.sh && \
 	bash Anaconda3-5.2.0-Linux-x86_64.sh -b -p /opt/anaconda && \
 	rm Anaconda3-5.2.0-Linux-x86_64.sh
+
 
 ## Export path
 ENV PATH=/opt/anaconda/bin:/root/bin:/usr/local/bin:$PATH \
@@ -23,8 +24,11 @@ ENV PATH=/opt/anaconda/bin:/root/bin:/usr/local/bin:$PATH \
 ## Configure anaconda
 EXPOSE 8888
 
-# Update conda
-RUN conda install anaconda python pip -y
+# Install other dependencies #
+##############################
+RUN conda install anaconda python=3.6 pip -y && \
+	pip install --upgrade pip && \
+	pip install tqdm seaborn selenium keras
 
 # Permanent volumnes #
 ######################
@@ -40,57 +44,53 @@ VOLUME ["/data"]
 # 0.5.4 was working
 RUN echo "startup --batch" >>/etc/bazel.bazelrc && \
         echo "build --spawn_strategy=standalone --genrule_strategy=standalone" >>/etc/bazel.bazelrc && \
-	curl -O -L https://github.com/bazelbuild/bazel/releases/download/0.16.1/bazel-0.16.1-installer-linux-x86_64.sh && \
-	chmod +x bazel-0.16.1-installer-linux-x86_64.sh && \
-	./bazel-0.16.1-installer-linux-x86_64.sh && \
-	rm ./bazel-0.16.1-installer-linux-x86_64.sh
+	curl -O -L https://github.com/bazelbuild/bazel/releases/download/0.17.2/bazel-0.17.2-installer-linux-x86_64.sh && \
+	chmod +x bazel-0.17.2-installer-linux-x86_64.sh && \
+	./bazel-0.17.2-installer-linux-x86_64.sh && \
+	rm ./bazel-0.17.2-installer-linux-x86_64.sh
 
 
 # Get tensorflow #
 ##################
-RUN git clone --branch=r1.10 --depth=1 https://github.com/tensorflow/tensorflow
+RUN git clone --branch=r1.11 --depth=1 https://github.com/tensorflow/tensorflow
 WORKDIR tensorflow
 
-## Hack to make tensorflow build process use non-standard python location
-RUN sed -i \
-	-e "s/^#!\/usr\/bin\/env python$/#!\/opt\/anaconda\/bin\/python/" \
-	third_party/gpus/crosstool/clang/bin/crosstool_wrapper_driver_is_not_gcc.tpl
+RUN mkdir /usr/local/cuda-9.2/nccl &&  \
+    ln -s /usr/include /usr/local/cuda-9.2/nccl/include && \
+    ln -s /usr/lib/x86_64-linux-gnu /usr/local/cuda-9.2/nccl/lib
 
-RUN apt-get install -y libnccl2=2.2.13-1+cuda9.0 libnccl-dev=2.2.13-1+cuda9.0 
-RUN mkdir /usr/local/cuda-9.0/lib &&  \
-    ln -s /usr/lib/x86_64-linux-gnu/libnccl.so.2 /usr/local/cuda/lib/libnccl.so.2 && \
-    ln -s /usr/include/nccl.h /usr/local/cuda/include/nccl.h
-
-# TODO(tobyboyd): Remove after license is excluded from BUILD file.
-RUN gunzip /usr/share/doc/libnccl2/NCCL-SLA.txt.gz && \
-    cp /usr/share/doc/libnccl2/NCCL-SLA.txt /usr/local/cuda/
+ADD NCCL-SLA.txt /usr/local/cuda-9.2/
 
 ## Setup bazel configuration variables
 ENV PYTHON_BIN_PATH=/opt/anaconda/bin/python \
 	USE_DEFAULT_PYTHON_LIB_PATH=1 \
-        LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} \
+	LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} \
 	TF_NEED_MKL=1 \
 	TF_DOWNLOAD_MKL=1 \ 
-        TF_NCCL_VERSION=2 \
+	TF_NCCL_VERSION=2.3.4 \
+        NCCL_INSTALL_PATH=/usr/local/cuda-9.2/nccl \
 	TF_NEED_CUDA=1 \
 	TF_NEED_OPENCL=0 \ 
 	TF_NEED_JEMALLOC=1 \
-        TF_NEED_AWS=0 \
-        TF_NEED_KAFKA=0 \
-        TF_NEED_OPENCL_SYCL=0 \
-        TF_NEED_COMPUTECPP=0 \
-        TF_NEED_TENSORRT=0 \
-        TF_NEED_VERBS=0 \
+	TF_NEED_AWS=0 \
+	TF_NEED_KAFKA=0 \
+	TF_NEED_OPENCL_SYCL=0 \
+	TF_NEED_COMPUTECPP=0 \
+	TF_NEED_TENSORRT=0 \
+	TF_NEED_VERBS=0 \
 	TF_NEED_HDFS=0 \
 	TF_NEED_GDR=0 \
 	TF_NEED_MPI=0 \
 	TF_ENABLE_XLA=1 \
 	TF_CUDA_CLANG=0 \
 	TF_NEED_GCP=0 \
-	TF_CUDA_VERSION=9.0 \
+	TF_CUDA_VERSION=9.2 \
 	TF_CUDNN_VERSION=7 \
-        CUDNN_INSTALL_PATH=/usr/lib/x86_64-linux-gnu \
-	TF_CUDA_COMPUTE_CAPABILITIES=3.5,5.2,6.1
+	CUDNN_INSTALL_PATH=/usr/lib/x86_64-linux-gnu \
+	TF_CUDA_COMPUTE_CAPABILITIES=3.5,5.2,6.0,6.1
+
+# Check NCCL version matches
+RUN NCCL_VERSION=$(dpkg -s libnccl2 | grep Version | sed -En 's/.* (([0-9]\.)+[0-9]+)-.*/\1/p'); if [ "$TF_NCCL_VERSION" != "$NCCL_VERSION" ]; then (>&2 echo "set --nccl-version=$NCCL_VERSION (currently using $TF_NCCL_VERSION)"); exit 1; fi
 
 RUN chmod +x configure && \
 	sed -i -e '3,4d' configure && \
@@ -119,7 +119,7 @@ WORKDIR ..
 RUN git clone https://github.com/facebook/rocksdb.git && \
 	mkdir rocksdb/build && \
 	cd rocksdb/build && \
-	git checkout v5.3.6 && \
+	git checkout v5.15.10 && \
 	cmake .. && \
 	make -j $(grep -c '^processor' /proc/cpuinfo) && \
 	make install && \
@@ -127,10 +127,19 @@ RUN git clone https://github.com/facebook/rocksdb.git && \
 	rm -rf rocksdb
 
 
+# LSYNCD #
+#########
+RUN git clone https://github.com/axkibe/lsyncd && \
+	mkdir lsyncd/build && \
+	cd lsyncd/build && \
+	cmake .. && \
+	make -j $(grep -c '^processor' /proc/cpuinfo) && \
+	make install && \
+	cd ../.. && \
+	rm -rf lsyncd
 
-# Install other dependencies #
-##############################
-RUN pip install tqdm seaborn selenium pandas==0.19.2 keras
+
+
 
 # Setup PYTHONPATH #
 ####################
@@ -164,7 +173,7 @@ fi \n\
 if [ -n \"\${FETCH_TF_CONTRIB}\" ] \n\
 then \n\
     pip install git+https://www.github.com/farizrahman4u/keras-contrib.git \n\
-    git clone -b v3.0 https://github.com/gpascualg/SenseTheFlow.git /opt/python-libs/SenseTheFlow \n\
+    git clone https://github.com/gpascualg/SenseTheFlow.git /opt/python-libs/SenseTheFlow \n\
 fi \n\
 # SSH \n\
 /usr/sbin/sshd \n\
@@ -189,8 +198,7 @@ EXPOSE 22
 ENV NODE_OPTIONS=--max-old-space-size=4096
 
 # Jupyter lab
-RUN conda install -y jupyterlab=0.31.12 && \
-	conda install -y nodejs && \
+RUN conda install -y jupyterlab=0.31.12 nodejs && \
 	jupyter serverextension enable --py jupyterlab --sys-prefix && \
 	jupyter labextension install @jupyter-widgets/jupyterlab-manager@0.34 && \
 	conda update -y -c conda-forge ipywidgets
@@ -199,6 +207,13 @@ RUN conda install -y jupyterlab=0.31.12 && \
 RUN sed -i -e "s/content = dict(restart=restart)/content = dict(restart=restart)\n        self.signal_kernel(signal.SIGTERM)/" /opt/anaconda/lib/python3.6/site-packages/jupyter_client/manager.py
 
 # Jupyter lab coranos
+
+# At some point we need
+#.p-Widget.jp-OutputPrompt.jp-OutputArea-prompt:empty {
+#  padding: 0;
+#  border: 0;
+#}
+
 
 # Entry point #
 ###############

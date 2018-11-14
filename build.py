@@ -17,13 +17,19 @@ def subprocess_cmd(command, cin=None):
 def main():
     parser = argparse.ArgumentParser(description='Build options.')
     parser.add_argument('--tag', required=True)
+    parser.add_argument('--ubuntu-version', default='18.04')
     parser.add_argument('--python-version', default='3')
     parser.add_argument('--dir', default='.')
     parser.add_argument('--tensorflow', action='store_true')
     parser.add_argument('--tensorflow-version', default='r1.0')
-    parser.add_argument('--bazel-version', default='0.16.1')
+    parser.add_argument('--tensorflow-generic', action='store_true')
+    parser.add_argument('--bazel-version', default='0.17.2')
+    parser.add_argument('--nccl-version', default='2')
+    parser.add_argument('--rocksdb-version', default='v5.15.10')
     parser.add_argument('--caffe', action='store_true')
     parser.add_argument('--gpu', action='store_true')
+    parser.add_argument('--cuda-version', default='9.2')
+    parser.add_argument('--cudnn-version', default='7')
     parser.add_argument('--opencl', action='store_true')
     parser.add_argument('--ssh', action='store_true')
     parser.add_argument('--push', action='store_true')
@@ -33,18 +39,39 @@ def main():
 
     args = parser.parse_args()
 
+    compute_capabilities = '3.5,5.2'
+    base = 'ubuntu:{}'.format(args.ubuntu_version)
+
+    if args.gpu:
+        base = 'nvidia/cuda:{}-cudnn{}{}-ubuntu{}'
+        base = base.format(
+            args.cuda_version, 
+            args.cudnn_version,
+            '' if args.tensorflow_generic else '-devel',
+            args.ubuntu_version
+        )
+
+    if args.half_precision:
+        compute_capabilities += ',6.0,6.1'
+
     data = {
         'python_version27': int(args.python_version) == 2,
-        'build_tensorflow': int(args.tensorflow),
+        'tensorflow_dependencies': int(args.tensorflow or args.tensorflow_generic),
+        'build_tensorflow': int(args.tensorflow and not args.tensorflow_generic),
+        'tensorflow_generic': int(args.tensorflow_generic),
         'tensorflow_version': args.tensorflow_version,
         'bazel_version': args.bazel_version,
+        'nccl_version': args.nccl_version,
+        'rocksdb_version': args.rocksdb_version,
         'build_caffe': int(args.caffe),
         'jupyter_lab': not bool(args.no_jupyter_lab),
         'coranos': bool(args.jupyter_coranos),
-        'base': 'nvidia/cuda:9.0-cudnn7-devel-ubuntu16.04' if args.gpu else 'ubuntu:16.04',
+        'base': base,
+        'cuda_version': args.cuda_version,
+        'cudnn_version': args.cudnn_version,
         'use_cuda': 1 if args.gpu else 0,
         'use_opencl': int(args.opencl),
-        'compute_capabilities': '3.5,5.2,6.1' if args.half_precision else '3.5,5.2',
+        'compute_capabilities': compute_capabilities,
         'ssh': int(args.ssh)
     }
 
