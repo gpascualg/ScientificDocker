@@ -4,6 +4,11 @@ MAINTAINER Guillem Pascual <gpascualg93@gmail.com>
 # Update + dependencies #
 #########################
 
+RUN sed -i '1i deb mirror://mirrors\.ubuntu\.com/mirrors\.txt bionic main restricted universe multiverse' /etc/apt/sources.list && \
+	sed -i '1i deb mirror://mirrors\.ubuntu\.com/mirrors\.txt bionic-updates main restricted universe multiverse' /etc/apt/sources.list && \
+	sed -i '1i deb mirror://mirrors\.ubuntu\.com/mirrors\.txt bionic-backports main restricted universe multiverse' /etc/apt/sources.list && \
+	sed -i '1i deb mirror://mirrors\.ubuntu\.com/mirrors\.txt bionic-security main restricted universe multivers' /etc/apt/sources.list
+
 [[if tensorflow_dependencies]]
 RUN apt-get update && \
 	apt-get install -y curl bzip2 software-properties-common zip g++ unzip cmake vim \
@@ -58,6 +63,9 @@ VOLUME ["/data"]
 
 RUN pip install tensorflow-gpu
 
+[[endif]]
+[[if tensorflow_nightly]]
+RUN pip install tf-nightly-gpu-2.0-preview
 [[endif]]
 [[if build_tensorflow]]
 
@@ -126,7 +134,8 @@ RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/lib
 		$(gcc -msse4.2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-msse4.2") \
 		$(gcc -mavx -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-mavx") \
 		$(gcc -mavx2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-mavx2") \
-	    --config=opt --config=cuda --verbose_failures --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0" \
+		--config=opt --config=cuda --verbose_failures --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0" \
+		--action_env PATH="$PATH" --noincompatible_strict_action_env \
 		--jobs=$(grep -c '^processor' /proc/cpuinfo) //tensorflow/tools/pip_package:build_pip_package
 [[else]]
 	RUN bazel build -s \
@@ -296,9 +305,8 @@ EXPOSE 22
 ENV NODE_OPTIONS=--max-old-space-size=4096
 
 # Jupyter lab
-RUN conda install -y jupyterlab=0.31.12 nodejs && \
-	jupyter serverextension enable --py jupyterlab --sys-prefix && \
-	jupyter labextension install @jupyter-widgets/jupyterlab-manager@0.34 && \
+RUN conda install -y -c conda-forge jupyterlab=0.35.4 nodejs && \
+	jupyter labextension install @jupyter-widgets/jupyterlab-manager@0.38 && \
 	conda update -y -c conda-forge ipywidgets
 
 # Do not directly kill processes for god's sake!

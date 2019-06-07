@@ -23,6 +23,7 @@ def main():
     parser.add_argument('--tensorflow', action='store_true')
     parser.add_argument('--tensorflow-version', default='r1.0')
     parser.add_argument('--tensorflow-generic', action='store_true')
+    parser.add_argument('--tensorflow-nightly', action='store_true')
     parser.add_argument('--bazel-version', default='0.17.2')
     parser.add_argument('--nccl-version', default='2')
     parser.add_argument('--rocksdb-version', default='v5.15.10')
@@ -47,7 +48,7 @@ def main():
         base = base.format(
             args.cuda_version, 
             args.cudnn_version,
-            '' if args.tensorflow_generic else '-devel',
+            '' if (args.tensorflow_generic) else '-devel',
             args.ubuntu_version
         )
 
@@ -56,9 +57,10 @@ def main():
 
     data = {
         'python_version27': int(args.python_version) == 2,
-        'tensorflow_dependencies': int(args.tensorflow or args.tensorflow_generic),
-        'build_tensorflow': int(args.tensorflow and not args.tensorflow_generic),
+        'tensorflow_dependencies': int(args.tensorflow or args.tensorflow_generic or args.tensorflow_nightly),
+        'build_tensorflow': int(args.tensorflow and not args.tensorflow_generic and not args.tensorflow_nightly),
         'tensorflow_generic': int(args.tensorflow_generic),
+        'tensorflow_nightly': int(args.tensorflow_nightly),
         'tensorflow_version': args.tensorflow_version,
         'bazel_version': args.bazel_version,
         'nccl_version': args.nccl_version,

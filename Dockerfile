@@ -1,12 +1,17 @@
-FROM nvidia/cuda:9.2-cudnn7-devel-ubuntu18.04
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
 MAINTAINER Guillem Pascual <gpascualg93@gmail.com>
 
 # Update + dependencies #
 #########################
 
+RUN sed -i '1i deb mirror://mirrors\.ubuntu\.com/mirrors\.txt bionic main restricted universe multiverse' /etc/apt/sources.list && \
+	sed -i '1i deb mirror://mirrors\.ubuntu\.com/mirrors\.txt bionic-updates main restricted universe multiverse' /etc/apt/sources.list && \
+	sed -i '1i deb mirror://mirrors\.ubuntu\.com/mirrors\.txt bionic-backports main restricted universe multiverse' /etc/apt/sources.list && \
+	sed -i '1i deb mirror://mirrors\.ubuntu\.com/mirrors\.txt bionic-security main restricted universe multivers' /etc/apt/sources.list
+
 RUN apt-get update && \
 	apt-get install -y curl bzip2 software-properties-common zip g++ unzip cmake vim \
-		libxrender1 libfontconfig1 git lua5.3 lua5.3-dev \
+		libxrender1 libfontconfig1 git lua5.3 lua5.3-dev rsync \
 		swig pkg-config openjdk-8-jdk-headless autoconf locate build-essential \
 		libpng-dev libfreetype6-dev libzmq3-dev zlib1g-dev
 
@@ -38,80 +43,7 @@ VOLUME ["/notebooks"]
 RUN mkdir /data
 VOLUME ["/data"]
 
-
-# Get Bazel #
-#############
-# 0.5.4 was working
-RUN echo "startup --batch" >>/etc/bazel.bazelrc && \
-        echo "build --spawn_strategy=standalone --genrule_strategy=standalone" >>/etc/bazel.bazelrc && \
-	curl -O -L https://github.com/bazelbuild/bazel/releases/download/0.17.2/bazel-0.17.2-installer-linux-x86_64.sh && \
-	chmod +x bazel-0.17.2-installer-linux-x86_64.sh && \
-	./bazel-0.17.2-installer-linux-x86_64.sh && \
-	rm ./bazel-0.17.2-installer-linux-x86_64.sh
-
-
-# Get tensorflow #
-##################
-RUN git clone --branch=r1.11 --depth=1 https://github.com/tensorflow/tensorflow
-WORKDIR tensorflow
-
-RUN mkdir /usr/local/cuda-9.2/nccl &&  \
-    ln -s /usr/include /usr/local/cuda-9.2/nccl/include && \
-    ln -s /usr/lib/x86_64-linux-gnu /usr/local/cuda-9.2/nccl/lib
-
-ADD NCCL-SLA.txt /usr/local/cuda-9.2/
-
-## Setup bazel configuration variables
-ENV PYTHON_BIN_PATH=/opt/anaconda/bin/python \
-	USE_DEFAULT_PYTHON_LIB_PATH=1 \
-	LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} \
-	TF_NEED_MKL=1 \
-	TF_DOWNLOAD_MKL=1 \ 
-	TF_NCCL_VERSION=2.3.4 \
-        NCCL_INSTALL_PATH=/usr/local/cuda-9.2/nccl \
-	TF_NEED_CUDA=1 \
-	TF_NEED_OPENCL=0 \ 
-	TF_NEED_JEMALLOC=1 \
-	TF_NEED_AWS=0 \
-	TF_NEED_KAFKA=0 \
-	TF_NEED_OPENCL_SYCL=0 \
-	TF_NEED_COMPUTECPP=0 \
-	TF_NEED_TENSORRT=0 \
-	TF_NEED_VERBS=0 \
-	TF_NEED_HDFS=0 \
-	TF_NEED_GDR=0 \
-	TF_NEED_MPI=0 \
-	TF_ENABLE_XLA=1 \
-	TF_CUDA_CLANG=0 \
-	TF_NEED_GCP=0 \
-	TF_CUDA_VERSION=9.2 \
-	TF_CUDNN_VERSION=7 \
-	CUDNN_INSTALL_PATH=/usr/lib/x86_64-linux-gnu \
-	TF_CUDA_COMPUTE_CAPABILITIES=3.5,5.2,6.0,6.1
-
-# Check NCCL version matches
-RUN NCCL_VERSION=$(dpkg -s libnccl2 | grep Version | sed -En 's/.* (([0-9]\.)+[0-9]+)-.*/\1/p'); if [ "$TF_NCCL_VERSION" != "$NCCL_VERSION" ]; then (>&2 echo "set --nccl-version=$NCCL_VERSION (currently using $TF_NCCL_VERSION)"); exit 1; fi
-
-RUN chmod +x configure && \
-	sed -i -e '3,4d' configure && \
-	./configure
-
-# Finds optimal GCC flags
-RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
-	bazel build -s \
-		$(gcc -msse4.1 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-msse4.1") \
-		$(gcc -msse4.2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-msse4.2") \
-		$(gcc -mavx -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-mavx") \
-		$(gcc -mavx2 -dM -E - < /dev/null | egrep -q "SSE|AVX" && echo "--copt=-mavx2") \
-	    --config=opt --config=cuda --verbose_failures --cxxopt="-D_GLIBCXX_USE_CXX11_ABI=0" \
-		--jobs=$(grep -c '^processor' /proc/cpuinfo) //tensorflow/tools/pip_package:build_pip_package
-
-RUN bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg && \
-	pip install /tmp/tensorflow_pkg/$(ls /tmp/tensorflow_pkg)
-
-## Back to root
-WORKDIR ..
-
+RUN pip install tf-nightly-gpu-2.0-preview
 
 
 # Fetch RocksDB #
@@ -175,8 +107,6 @@ then \n\
     pip install git+https://www.github.com/farizrahman4u/keras-contrib.git \n\
     git clone https://github.com/gpascualg/SenseTheFlow.git /opt/python-libs/SenseTheFlow \n\
 fi \n\
-# SSH \n\
-/usr/sbin/sshd \n\
 # Start \n\
 jupyter-notebook /notebooks --allow-root --config=/etc/jupyter-notebook.py &>/dev/null" > /opt/anaconda/run_jupyter.sh.tpl
 RUN sed 's/ *$//' /opt/anaconda/run_jupyter.sh.tpl > /opt/anaconda/run_jupyter.sh
@@ -185,22 +115,11 @@ RUN chmod +x /opt/anaconda/run_jupyter.sh
 # SSH #
 #######
 
-RUN apt-get update && \
-	apt-get install -y openssh-server && \
-	mkdir /var/run/sshd && \
-	mkdir -p  ~/.ssh && \
-	chmod 700 ~/.ssh && \
-	touch /root/.ssh/authorized_keys && \
-	chmod 600 /root/.ssh/authorized_keys
-
-EXPOSE 22
-
 ENV NODE_OPTIONS=--max-old-space-size=4096
 
 # Jupyter lab
-RUN conda install -y jupyterlab=0.31.12 nodejs && \
-	jupyter serverextension enable --py jupyterlab --sys-prefix && \
-	jupyter labextension install @jupyter-widgets/jupyterlab-manager@0.34 && \
+RUN conda install -y -c conda-forge jupyterlab=0.35.4 nodejs && \
+	jupyter labextension install @jupyter-widgets/jupyterlab-manager@0.38 && \
 	conda update -y -c conda-forge ipywidgets
 
 # Do not directly kill processes for god's sake!

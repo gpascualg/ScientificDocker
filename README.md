@@ -21,7 +21,7 @@ This repository contains a template that can build and run both tensorflow and c
 A complete build command might look like:
 
 ```
-python build.py --tensorflow --tensorflow-version=r1.9 --gpu --ssh --half-precision --tag deepstack
+python build.py --tensorflow --tensorflow-version=r1.13 --gpu --ssh --half-precision --cuda-version 10.0 --bazel-version 0.21.0 --cudnn-version 7 --tag deepstack --nccl-version=2.4.2
 ```
 
 You can keep multiple versions by specifying a tag like `deepstack:gpu` or even `deepstack:gpu-tf1.8`, etc.
