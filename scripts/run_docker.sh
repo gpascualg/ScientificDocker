@@ -57,7 +57,7 @@ docker stop $name &>/dev/null
 docker rm $name &>/dev/null
 
 # Execute docker detached
-docker run --runtime=nvidia -tdi $n $p $v $e $1
+docker run --runtime=nvidia -tdi --restart unless-stopped $n $p $v $e $1
 
 if [[ $? -ne 0 ]]; then
     echo "Fatal, could not start docker"
