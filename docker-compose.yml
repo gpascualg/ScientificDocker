@@ -1,0 +1,45 @@
+version: '2.3'
+
+services:
+  traefik:
+    image: traefik
+    container_name: traefik
+    command: 
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      #- "--log.level=debug"
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro # So that Traefik can listen to the Docker events
+
+  guillem:
+    image: deepstack-2
+    volumes:
+      - /notebooks:/notebooks
+      - /data:/data
+    environment:
+      - JUPYTER_PASSWORD=
+      - USERNAME=guillem
+      - FETCH_TF_CONTRIB=1
+    depends_on:
+      - traefik
+    links:
+      - traefik
+    runtime: nvidia
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.auth.basicauth.users=guillem:$$2y$$05$$CKUMDlEXCjLDemTqkyrgweIIEYdP1shFk7xU4OyktO0KRatBO3KtW"
+      # Theia
+      - "traefik.http.routers.theia.service=theia"
+      - "traefik.http.routers.theia.rule=Host(`161.116.84.128`) && PathPrefix(`/guillem/ide/`)"
+      - "traefik.http.services.theia.loadbalancer.server.port=8080"
+      - "traefik.http.routers.theia.middlewares=auth,theia-stripprefix"
+      - "traefik.http.middlewares.theia-stripprefix.stripprefix.prefixes=/guillem/ide"
+      # Jupyter
+      - "traefik.http.routers.jupyter.service=jupyter"
+      - "traefik.http.routers.jupyter.rule=Host(`161.116.84.128`) && PathPrefix(`/guillem/jupyter/`)"
+      - "traefik.http.services.jupyter.loadbalancer.server.port=8888"
+      - "traefik.http.routers.jupyter.middlewares=auth"
+

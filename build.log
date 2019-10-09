@@ -1,0 +1,168 @@
+nohup: no se tendrá en cuenta la entrada
+Sending build context to Docker daemon  104.3MB
+Step 1/55 : ARG UBUNTU_VERSION=18.04
+Step 2/55 : ARG ARCH=
+Step 3/55 : ARG CUDA=10.0
+Step 4/55 : FROM nvidia/cuda${ARCH:+-$ARCH}:${CUDA}-base-ubuntu${UBUNTU_VERSION}
+ ---> 5026b20f9c3d
+Step 5/55 : MAINTAINER Guillem Pascual <gpascualg93@gmail.com>
+ ---> Using cache
+ ---> 68b581a7c137
+Step 6/55 : ARG ARCH
+ ---> Using cache
+ ---> 4e59ce4a59b0
+Step 7/55 : ARG CUDA
+ ---> Using cache
+ ---> 70ca404dac58
+Step 8/55 : ARG CUDNN=7.6.2.24-1
+ ---> Using cache
+ ---> a9c72661a796
+Step 9/55 : ARG CUDNN_MAJOR_VERSION=7
+ ---> Using cache
+ ---> b2fd65d8b99c
+Step 10/55 : ARG LIB_DIR_PREFIX=x86_64
+ ---> Using cache
+ ---> eeae1198a8c5
+Step 11/55 : SHELL ["/bin/bash", "-c"]
+ ---> Using cache
+ ---> aee2e3b2ce35
+Step 12/55 : RUN sed -i '1i deb mirror://mirrors\.ubuntu\.com/mirrors\.txt bionic main restricted universe multiverse' /etc/apt/sources.list &&         sed -i '1i deb mirror://mirrors\.ubuntu\.com/mirrors\.txt bionic-updates main restricted universe multiverse' /etc/apt/sources.list &&         sed -i '1i deb mirror://mirrors\.ubuntu\.com/mirrors\.txt bionic-backports main restricted universe multiverse' /etc/apt/sources.list &&         sed -i '1i deb mirror://mirrors\.ubuntu\.com/mirrors\.txt bionic-security main restricted universe multivers' /etc/apt/sources.list
+ ---> Using cache
+ ---> 6d25ac6af62e
+Step 13/55 : RUN apt-get update && 	apt-get install -y --no-install-recommends         	build-essential 		checkinstall 	        cuda-command-line-tools-${CUDA/./-} 	        cuda-cublas-dev-${CUDA/./-} 	        cuda-cudart-dev-${CUDA/./-} 	        cuda-cufft-dev-${CUDA/./-} 	        cuda-curand-dev-${CUDA/./-} 	        cuda-cusolver-dev-${CUDA/./-} 	        cuda-cusparse-dev-${CUDA/./-} 	        libcudnn7=${CUDNN}+cuda${CUDA} 	        libcudnn7-dev=${CUDNN}+cuda${CUDA} 		libreadline-gplv2-dev 		libncursesw5-dev 		libssl-dev 		libsqlite3-dev 		libgdbm-dev 		libc6-dev 		libbz2-dev 		libffi-dev 		zlib1g-dev 	        libcurl3-dev 	        libfreetype6-dev 	        libhdf5-serial-dev 	        libzmq3-dev 	        pkg-config 	        rsync 	        software-properties-common 	        unzip 	        zip 		curl 		bzip2 		cmake 		vim 	        zlib1g-dev 	        wget 	        git         	&& 	find /usr/local/cuda-${CUDA}/lib64/ -type f -name 'lib*_static.a' -not -name 'libcudart_static.a' -delete && 	rm /usr/lib/${LIB_DIR_PREFIX}-linux-gnu/libcudnn_static_v7.a
+ ---> Using cache
+ ---> 81b978e26d9a
+Step 14/55 : ARG NODEJS_VERSION=10.16.3
+ ---> Using cache
+ ---> d5c0388f99e1
+Step 15/55 : RUN wget -O /opt/node.tar.xz https://nodejs.org/dist/v${NODEJS_VERSION}/node-v${NODEJS_VERSION}-linux-x64.tar.xz && 	cd /opt && 	tar xf node.tar.xz
+ ---> Using cache
+ ---> aa1a8c958fa3
+Step 16/55 : ARG PYTHON_MAJOR=3
+ ---> Using cache
+ ---> a763218df51d
+Step 17/55 : ARG PYTHON_MINOR=7
+ ---> Using cache
+ ---> 7248cb46dffb
+Step 18/55 : ARG PYTHON_PATCH=4
+ ---> Using cache
+ ---> 5a25dab19f8d
+Step 19/55 : ARG _PYTHON_VERSION=${PYTHON_MAJOR}.${PYTHON_MINOR}.${PYTHON_PATCH}
+ ---> Using cache
+ ---> 3bac1850b92d
+Step 20/55 : RUN wget -O /opt/python.tgz https://www.python.org/ftp/python/${_PYTHON_VERSION}/Python-${_PYTHON_VERSION}.tgz && 	cd /opt && 	tar xfz python.tgz && 	cd Python-${_PYTHON_VERSION} && 	./configure --enable-optimizations && 	make install -j$(grep -c '^processor' /proc/cpuinfo)
+ ---> Using cache
+ ---> aef8801d0fdb
+Step 21/55 : ARG PYTHON=python${PYTHON_MAJOR}.${PYTHON_MINOR}
+ ---> Using cache
+ ---> 188a5d27609a
+Step 22/55 : ARG PIP=pip${PYTHON_MAJOR}
+ ---> Using cache
+ ---> acb37fdf7834
+Step 23/55 : ENV PATH=/root/bin:/root/.local/bin:/opt/node-v${NODEJS_VERSION}-linux-x64/bin:/usr/local/bin:$PATH 	LD_LIBRARY_PATH=/usr/local/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/lib64/stubs:$LD_LIBRARY_PATH
+ ---> Using cache
+ ---> cf170e883d39
+Step 24/55 : EXPOSE 8888
+ ---> Using cache
+ ---> 996254880ff0
+Step 25/55 : RUN ${PIP} install --user --upgrade pip==19.2.3 wheel==0.33.6 setuptools==41.4.0 virtualenv==16.7.5 && 	${PIP} install --user --upgrade 		Pillow==6.2.0 		h5py==2.10.0 		keras_applications==1.0.8 		keras_preprocessing==1.1.0 		mock==3.0.5 		scipy==1.3.1 		scikit-learn==0.21.3 		future==0.17.1 		portpicker==1.3.1 		tqdm==4.36.1 		seaborn==0.9.0 		selenium==3.141.0 		pandas==0.25.1 		numpy==1.17.2 		matplotlib==3.1.1 		jupyterlab==1.1.4 		ipywidgets==7.5.1 && 	jupyter nbextension enable --py widgetsnbextension && 	jupyter labextension install @jupyter-widgets/jupyterlab-manager@1.0.2
+ ---> Using cache
+ ---> dab3330c7a1f
+Step 26/55 : RUN update-alternatives --install /usr/bin/python python $(which ${PYTHON}) 1
+ ---> Using cache
+ ---> 5fe9d23016bc
+Step 27/55 : RUN mkdir /notebooks
+ ---> Using cache
+ ---> f693b19af81c
+Step 28/55 : VOLUME ["/notebooks"]
+ ---> Using cache
+ ---> 65f28367a946
+Step 29/55 : RUN mkdir /data
+ ---> Using cache
+ ---> 1c8ac9afc993
+Step 30/55 : VOLUME ["/data"]
+ ---> Using cache
+ ---> 2820f855a7b4
+Step 31/55 : ARG CUDA_COMPUTE_CAPABILITIES=3.5,5.2,6.0,6.1,7.0
+ ---> Using cache
+ ---> bfb96a992173
+Step 32/55 : ARG TENSORFLOW=2.0.0
+ ---> Using cache
+ ---> 53a94d1f92b4
+Step 33/55 : ARG TENSORFLOW_GENERIC=0
+ ---> Using cache
+ ---> a37939b0fced
+Step 34/55 : ARG BAZEL_VERSION=0.24.1
+ ---> Using cache
+ ---> 3c6554716176
+Step 35/55 : ARG NUM_JOBS=32
+ ---> Using cache
+ ---> e4bf581d16b9
+Step 36/55 : ENV TF_NEED_MKL=1         TF_DOWNLOAD_MKL=1         TF_NEED_CUDA=1         TF_NEED_OPENCL=0         TF_NEED_JEMALLOC=1         TF_NEED_AWS=0         TF_NEED_KAFKA=0         TF_NEED_OPENCL_SYCL=0         TF_NEED_COMPUTECPP=0         TF_NEED_TENSORRT=0         TF_NEED_VERBS=0         TF_NEED_HDFS=0         TF_NEED_GDR=0         TF_NEED_MPI=0         TF_NEED_NCCL=1         TF_ENABLE_XLA=1         TF_CUDA_CLANG=0         TF_NEED_GCP=0         TF_CUDA_VERSION=${CUDA}         TF_CUDNN_VERSION=${CUDNN_MAJOR_VERSION}         TF_CUDA_COMPUTE_CAPABILITIES=${CUDA_COMPUTE_CAPABILITIES}
+ ---> Using cache
+ ---> 9afdff7d2ae2
+Step 37/55 : RUN test "${TENSORFLOW_GENERIC}" -eq 1 && pip install tensorflow-gpu==${TENSORFLOW_VERSION} || true
+ ---> Using cache
+ ---> ce862bb73a5c
+Step 38/55 : RUN test "${TENSORFLOW_GENERIC}" -eq 0 && ( 	wget -O /tmp/bazel-installer.sh "https://github.com/bazelbuild/bazel/releases/download/${BAZEL_VERSION}/bazel-${BAZEL_VERSION}-installer-linux-x86_64.sh" && 	wget -O /tmp/LICENSE.txt "https://raw.githubusercontent.com/bazelbuild/bazel/master/LICENSE" && 	chmod +x /tmp/bazel-installer.sh && 	/tmp/bazel-installer.sh && 	rm -rf /tmp/bazel-installer.sh && 	git clone --branch="r${TENSORFLOW/%.[0-9]/}" --depth=1 https://github.com/tensorflow/tensorflow /opt/tensorflow && 	cd /opt/tensorflow && 	chmod +x configure && 	./configure && 	bazel build --config=opt --config=cuda --verbose_failures //tensorflow/tools/pip_package:build_pip_package --jobs=${NUM_JOBS} && 	./bazel-bin/tensorflow/tools/pip_package/build_pip_package /tmp/tensorflow_pkg && 	${PIP} install /tmp/tensorflow_pkg/$(ls /tmp/tensorflow_pkg) ) || test "${TENSORFLOW_GENERIC}" -eq 1
+ ---> Using cache
+ ---> e44ad3cc19ea
+Step 39/55 : ARG ROCKSDB_VERSION=6.3.6
+ ---> Using cache
+ ---> 239d90cf8688
+Step 40/55 : RUN git clone https://github.com/facebook/rocksdb.git && 	mkdir rocksdb/build && 	cd rocksdb/build && 	git checkout v${ROCKSDB_VERSION} && 	cmake .. && 	make -j $(grep -c '^processor' /proc/cpuinfo) && 	make install && 	cd ../.. && 	rm -rf rocksdb
+ ---> Using cache
+ ---> dd64b4a87e9b
+Step 41/55 : ARG ENABLE_SSH=1
+ ---> Using cache
+ ---> 8e7564c05041
+Step 42/55 : ENV ENABLE_SSH=${ENABLE_SSH}
+ ---> Using cache
+ ---> 64aa9a0f1523
+Step 43/55 : RUN test ${ENABLE_SSH} -eq 1 && ( 	apt-get update && 	apt-get install -y openssh-server && 	mkdir /var/run/sshd && 	mkdir -p  ~/.ssh && 	chmod 700 ~/.ssh && 	touch /root/.ssh/authorized_keys && 	chmod 600 /root/.ssh/authorized_keys ) || test "${ENABLE_SSH}" -eq 0
+ ---> Using cache
+ ---> 419ac4c5dfdd
+Step 44/55 : ARG ENABLE_THEIA=1
+ ---> Using cache
+ ---> 9f702307df80
+Step 45/55 : RUN test "${ENABLE_THEIA}" -eq 1 && ( 	update-alternatives --install /usr/bin/pip pip $(which ${PIP}) 1 && 	apt-get install -y --no-install-recommends python python-pip && 	${PYTHON} -m pip install -U --force-reinstall pip==19.2.3 setuptools==41.4.0 && 	python2.7 -m pip install -U --force-reinstall pip==19.2.3 setuptools==41.4.0 && 	npm config set python /usr/bin/python2.7 && 	wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && 	echo "deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic main" > /etc/apt/sources.list.d/llvm.list && 	apt-get update && apt-get install -y clang-tools-10 clangd-10 clang-tidy-10 && 	ln -s /usr/bin/clangd-10 /usr/bin/clangd && 	ln -s /usr/bin/clang-tidy-10 /usr/bin/clang-tidy && 	${PIP} install --user --upgrade python-language-server==0.28.3 && 	pip2 install --user --upgrade python-language-server==0.28.3 && 	npm install -g yarn && 	mkdir /opt/theia && 	cd /opt/theia && 	echo -e "{\n    \"private\": true,\n    \"name\": \"@deepstack/editor\",\n    \"version\": \"0.0.1\",\n    \"license\": \"Apache-2.0\",\n    \"theia\": {\n      \"frontend\": {\n        \"config\": {\n          \"applicationName\": \"Deepstack Editor\",\n          \"preferences\": {\n            \"files.enableTrash\": false\n          }\n        }\n      }\n    },\n    \"dependencies\": {\n        \"@theia/callhierarchy\": \"next\",\n        \"@theia/console\": \"next\",\n        \"@theia/core\": \"next\",\n        \"@theia/cpp\": \"next\",\n        \"@theia/debug\": \"next\",\n        \"@theia/debug-nodejs\": \"next\",\n        \"@theia/editor\": \"next\",\n        \"@theia/editorconfig\": \"next\",\n        \"@theia/editor-preview\": \"next\",\n        \"@theia/file-search\": \"next\",\n        \"@theia/filesystem\": \"next\",\n        \"@theia/getting-started\": \"next\",\n        \"@theia/git\": \"next\",\n        \"@theia/json\": \"next\",\n        \"@theia/keymaps\": \"next\",\n        \"@theia/languages\": \"next\",\n        \"@theia/markers\": \"next\",\n        \"@theia/merge-conflicts\": \"next\",\n        \"@theia/messages\": \"next\",\n        \"@theia/metrics\": \"next\",\n        \"@theia/mini-browser\": \"next\",\n        \"@theia/monaco\": \"next\",\n        \"@theia/navigator\": \"next\",\n        \"@theia/outline-view\": \"next\",\n        \"@theia/output\": \"next\",\n        \"@theia/plantuml\": \"next\",\n        \"@theia/plugin\": \"next\",\n        \"@theia/plugin-ext\": \"next\",\n        \"@theia/plugin-ext-vscode\": \"next\",\n        \"@theia/preferences\": \"next\",\n        \"@theia/preview\": \"next\",\n        \"@theia/process\": \"next\",\n        \"@theia/python\": \"next\",\n        \"@theia/search-in-workspace\": \"next\",\n        \"@theia/scm\": \"next\",\n        \"@theia/task\": \"next\",\n        \"@theia/terminal\": \"next\",\n        \"@theia/textmate-grammars\": \"next\",\n        \"@theia/tslint\": \"next\",\n        \"@theia/typehierarchy\": \"next\",\n        \"@theia/typescript\": \"next\",\n        \"@theia/userstorage\": \"next\",\n        \"@theia/variable-resolver\": \"next\",\n        \"@theia/workspace\": \"next\",\n        \"typescript\": \"latest\"\n    },\n    \"devDependencies\": {\n        \"@theia/cli\": \"next\"\n    }\n}" > package.json.tpl && 	sed 's/ *$//' package.json.tpl > package.json && 	cat package.json && 	yarn && 	yarn theia build ) || test "${ENABLE_THEIA}" -eq 0
+ ---> Using cache
+ ---> 4bc44709fc2a
+Step 46/55 : ENV FETCH_TF_CONTRIB=${FETCH_TF_CONTRIB}
+ ---> Using cache
+ ---> 9c7021cf2adf
+Step 47/55 : ENV LD_LIBRARY_PATH=/usr/lib64:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
+ ---> Using cache
+ ---> 924352cddc72
+Step 48/55 : RUN echo -e "#!/bin/bash\necho 'Generating config'\njupyter-notebook --allow-root --generate-config --config=/etc/jupyter-notebook.py\necho 'Replacing config with password'\nsed -i \ \n        -e \"s/^# *c.NotebookApp.ip = 'localhost'$/c.NotebookApp.ip = '0.0.0.0'/\" \ \n        -e \"s/^# *c.NotebookApp.port = 8888$/c.NotebookApp.port = 8888/\" \ \n        -e \"s/^# *c.NotebookApp.open_browser = True$/c.NotebookApp.open_browser = False/\" \ \n        -e \"s/^# *c.IPKernelApp.matplotlib = None$/c.IPKernelApp.matplotlib = 'inline'/\" \ \n        -e \"s/^# *c.NotebookApp.password = u''$/c.NotebookApp.password = u'\$JUPYTER_PASSWORD'/\" \ \n        -e \"s/^# *c.NotebookApp.password = ''$/c.NotebookApp.password = '\$JUPYTER_PASSWORD'/\" \ \n	-e \"s/^# *c.NotebookApp.token = '<generated>'$/c.NotebookApp.token = ''/\" \ \n        -e \"s/^# *c.IPKernelApp.extensions = \[\]$/c.IPKernelApp.extensions = ['version_information']/\" \ \n        -e \"s/^# *c.NotebookApp.base_url = '\/'$/c.NotebookApp.base_url = '\/\$USERNAME\/jupyter\/'/\" \ \n        /etc/jupyter-notebook.py \nif [ -n \"\${FETCH_TF_CONTRIB}\" ] \nthen \n    pip install git+https://www.github.com/farizrahman4u/keras-contrib.git \n    git clone -b tf-2.0 https://github.com/gpascualg/SenseTheFlow.git /opt/python-libs/SenseTheFlow \nfi \ntest "${ENABLE_SSH}" -eq 1 && /usr/sbin/sshd || true\ntest "${ENABLE_THEIA}" -eq 1 && (\n	cd /opt/theia && \n	nohup yarn theia start /notebooks --hostname 0.0.0.0 --port 8080 & \n) || true\njupyter-lab /notebooks --allow-root --config=/etc/jupyter-notebook.py &>/dev/null" > /opt/run_docker.sh.tpl && 	sed 's/ *$//' /opt/run_docker.sh.tpl > /opt/run_docker.sh && 	chmod +x /opt/run_docker.sh
+ ---> Using cache
+ ---> 16fc54600531
+Step 49/55 : ENV PYTHONPATH=/opt/python-libs:$PYTHONPATH
+ ---> Running in d8def778d599
+Removing intermediate container d8def778d599
+ ---> 1f3ad8e50f5e
+Step 50/55 : RUN mkdir /opt/python-libs
+ ---> Running in 15ab8b3ed7e6
+Removing intermediate container 15ab8b3ed7e6
+ ---> 2c0a288ce3cf
+Step 51/55 : ENV TINI_VERSION v0.18.0
+ ---> Running in 3d3ab60df709
+Removing intermediate container 3d3ab60df709
+ ---> b15f9563cc4f
+Step 52/55 : ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini /tini
+
+ ---> b38789bc8477
+Step 53/55 : RUN chmod +x /tini
+ ---> Running in 0baefb22fe99
+Removing intermediate container 0baefb22fe99
+ ---> ee21e05b656c
+Step 54/55 : ENTRYPOINT ["/tini", "--"]
+ ---> Running in 8cc721e1d88c
+Removing intermediate container 8cc721e1d88c
+ ---> e267a37936c8
+Step 55/55 : CMD ["/opt/run_docker.sh"]
+ ---> Running in bd4007b8d4f0
+Removing intermediate container bd4007b8d4f0
+ ---> d0f6ba6cec9b
+Successfully built d0f6ba6cec9b
+Successfully tagged deepstack-2:latest
