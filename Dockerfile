@@ -110,12 +110,14 @@ RUN ${PIP} install --user --upgrade pip==19.2.3 wheel==0.33.6 setuptools==41.4.0
 		mock==3.0.5 \
 		scipy==1.3.1 \
 		scikit-learn==0.21.3 \
+                scikit-image==0.16.2 \
 		future==0.17.1 \
 		portpicker==1.3.1 \
 		tqdm==4.36.1 \
 		seaborn==0.9.0 \
 		selenium==3.141.0 \
 		pandas==0.25.1 \
+                xlrd==1.2.0 \
 		numpy==1.17.2 \
                 networkx==2.4 \
 		imageio==2.6.1 \
@@ -170,6 +172,13 @@ ENV TF_NEED_MKL=1 \
         TF_CUDNN_VERSION=${CUDNN_MAJOR_VERSION} \
         TF_CUDA_COMPUTE_CAPABILITIES=${CUDA_COMPUTE_CAPABILITIES}
 
+# Older versions of Bazel, those needed for TF 1.0, need some fixes to work
+RUN test "${TENSORFLOW/.[0-9]*.[0-9]/}" -eq 1 && 
+( \
+	echo "/usr/local/cuda/lib64" > /etc/ld.so.conf.d/cuda.conf && ldconfig && \
+	echo "/usr/local/cuda-${CUDA}/targets/x86_64-linux/lib/stubs" > /etc/ld.so.conf.d/cuda-${CUDA}-stubs.conf && ldconfig \
+) || true
+
 RUN test "${TENSORFLOW_GENERIC}" -eq 1 && ${PIP} install tensorflow-gpu==${TENSORFLOW_VERSION} || true
 RUN test "${TENSORFLOW_GENERIC}" -eq 0 && \
 	# Get Bazel # \
@@ -204,7 +213,6 @@ RUN git clone https://github.com/facebook/rocksdb.git && \
 
 # Configure jupyter at startup
 ARG ENABLE_SSH=1
-ENV ENABLE_SSH=${ENABLE_SSH}
 RUN test ${ENABLE_SSH} -eq 1 && \
 ( \
 	apt-get update && \
@@ -331,8 +339,12 @@ sed -i \ \n\
         -e \"s/^# *c.NotebookApp.password = ''$/c.NotebookApp.password = '\$JUPYTER_PASSWORD'/\" \ \n\
 	-e \"s/^# *c.NotebookApp.token = '<generated>'$/c.NotebookApp.token = ''/\" \ \n\
         -e \"s/^# *c.IPKernelApp.extensions = \[\]$/c.IPKernelApp.extensions = ['version_information']/\" \ \n\
-        # -e \"s/^# *c.NotebookApp.base_url = '\/'$/c.NotebookApp.base_url = '\/\$USERNAME\/jupyter\/'/\" \ \n\
         /etc/jupyter-notebook.py \n\
+test \"\${ENABLE_JUPYTER_BASE_DIR}\" -eq 1 && (\n\
+	sed -i \ \n\
+		-e \"s/^# *c.NotebookApp.base_url = '\/'$/c.NotebookApp.base_url = '\/\$USERNAME\/jupyter\/'/\" \ \n\
+		/etc/jupyter-notebook.py\n\
+) || true\n\
 # Fetch global libraries from GIT \n\
 cd /opt/python-libs/\n\
 eval \"GITHUB_URLS=\$GITHUB_URLS\"\n\
@@ -348,10 +360,11 @@ for lib in \"\${PIP_LIBRARIES[@]}\"\n\
 do\n\
     echo Installing $lib\n\
     ${PIP} install \$lib\n\
+    pip2 install \$lib\n\
 done\n\
 # SSH \n\
-test "${ENABLE_SSH}" -eq 1 && /usr/sbin/sshd || true\n\
-test "${ENABLE_THEIA}" -eq 1 && (\n\
+test \"${ENABLE_SSH}\" -eq 1 && /usr/sbin/sshd || true\n\
+test \"${ENABLE_THEIA}\" -eq 1 && (\n\
 	cd /opt/theia && \n\
 	nohup yarn theia start /notebooks --hostname 0.0.0.0 --port 8080 & \n\
 ) || true\n\
