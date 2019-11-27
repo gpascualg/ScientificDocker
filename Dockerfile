@@ -46,6 +46,7 @@ RUN apt-get update && \
 		libc6-dev \
 		libbz2-dev \
 		libffi-dev \
+		liblzma-dev \
 		zlib1g-dev \
 	        libcurl3-dev \
 	        libfreetype6-dev \
@@ -103,6 +104,7 @@ RUN ${PIP} install --user --upgrade pip==19.2.3 wheel==0.33.6 setuptools==41.4.0
 	${PIP} install --user --upgrade \
 		Pillow==6.2.0 \
 		h5py==2.10.0 \
+		keras==2.3.1 \
 		keras_applications==1.0.8 \
 		keras_preprocessing==1.1.0 \
 		mock==3.0.5 \
@@ -115,6 +117,13 @@ RUN ${PIP} install --user --upgrade pip==19.2.3 wheel==0.33.6 setuptools==41.4.0
 		selenium==3.141.0 \
 		pandas==0.25.1 \
 		numpy==1.17.2 \
+                networkx==2.4 \
+		imageio==2.6.1 \
+		opencv-python==4.1.1.26 \
+		pyqtree==1.0.0 \
+		tqdm==4.36.1 \
+		pyyaml==5.1.2 \
+		semantic_version==2.8.2 \
 		matplotlib==3.1.1 \
 		jupyterlab==1.1.4 \
 		ipywidgets==7.5.1 && \
@@ -213,7 +222,7 @@ RUN test "${ENABLE_THEIA}" -eq 1 && \
 ( \
 	# Npm/gyp/theia uses 2.7, fix current installation and allow 2.7
 	update-alternatives --install /usr/bin/pip pip $(which ${PIP}) 1 && \
-	apt-get install -y --no-install-recommends python python-pip && \
+	apt-get install -y --no-install-recommends python python-pip python-dev && \
 	${PYTHON} -m pip install -U --force-reinstall pip==19.2.3 setuptools==41.4.0 && \
 	python2.7 -m pip install -U --force-reinstall pip==19.2.3 setuptools==41.4.0 && \
 	npm config set python /usr/bin/python2.7 && \
@@ -308,6 +317,8 @@ ENV FETCH_TF_CONTRIB=${FETCH_TF_CONTRIB}
 ENV LD_LIBRARY_PATH=/usr/lib64:/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
 
 RUN echo -e "#!/bin/bash\n\
+echo 'Allow more inotify watches'\n\
+sysctl fs.inotify.max_user_watches=524288\n\
 echo 'Generating config'\n\
 jupyter-notebook --allow-root --generate-config --config=/etc/jupyter-notebook.py\n\
 echo 'Replacing config with password'\n\
@@ -320,14 +331,24 @@ sed -i \ \n\
         -e \"s/^# *c.NotebookApp.password = ''$/c.NotebookApp.password = '\$JUPYTER_PASSWORD'/\" \ \n\
 	-e \"s/^# *c.NotebookApp.token = '<generated>'$/c.NotebookApp.token = ''/\" \ \n\
         -e \"s/^# *c.IPKernelApp.extensions = \[\]$/c.IPKernelApp.extensions = ['version_information']/\" \ \n\
-        -e \"s/^# *c.NotebookApp.base_url = '\/'$/c.NotebookApp.base_url = '\/\$USERNAME\/jupyter\/'/\" \ \n\
+        # -e \"s/^# *c.NotebookApp.base_url = '\/'$/c.NotebookApp.base_url = '\/\$USERNAME\/jupyter\/'/\" \ \n\
         /etc/jupyter-notebook.py \n\
-# Fetch latest SenseTheFlow \n\
-if [ -n \"\${FETCH_TF_CONTRIB}\" ] \n\
-then \n\
-    ${PIP} install git+https://www.github.com/farizrahman4u/keras-contrib.git \n\
-    git clone -b tf-2.0 https://github.com/gpascualg/SenseTheFlow.git /opt/python-libs/SenseTheFlow \n\
-fi \n\
+# Fetch global libraries from GIT \n\
+cd /opt/python-libs/\n\
+eval \"GITHUB_URLS=\$GITHUB_URLS\"\n\
+for url in \"\${GITHUB_URLS[@]}\"\n\
+do\n\
+    echo Cloning $url\n\
+    git clone \$url\n\
+done\n\
+cd /\n\
+# Fetch extra pip libraies\n\
+eval \"PIP_LIBRARIES=\$PIP_LIBRARIES\"\n\
+for lib in \"\${PIP_LIBRARIES[@]}\"\n\
+do\n\
+    echo Installing $lib\n\
+    ${PIP} install \$lib\n\
+done\n\
 # SSH \n\
 test "${ENABLE_SSH}" -eq 1 && /usr/sbin/sshd || true\n\
 test "${ENABLE_THEIA}" -eq 1 && (\n\

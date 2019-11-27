@@ -15,5 +15,9 @@ run_files/*
 # Latest is machine-dependant, do not track it
 latest
 
+# Private certificates & auth
+registry/registry/*.key
+registry/registry/auth
+
 # Build auxiliar output
 nohup.out

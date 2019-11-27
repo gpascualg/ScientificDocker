@@ -15,14 +15,20 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro # So that Traefik can listen to the Docker events
 
   guillem:
-    image: deepstack-2
+    image: registry.damnserver.com:443/deepstack:tf-2.0
+    build: '.'
     volumes:
       - /notebooks:/notebooks
       - /data:/data
     environment:
       - JUPYTER_PASSWORD=
       - USERNAME=guillem
-      - FETCH_TF_CONTRIB=1
+      - GITHUB_URLS=(
+            "-b tf-2.0 https://github.com/gpascualg/SenseTheFlow.git"
+        )
+      - PIP_LIBRARIES=(
+            "git+https://www.github.com/farizrahman4u/keras-contrib.git"
+        )
     depends_on:
       - traefik
     links:
@@ -33,13 +39,18 @@ services:
       - "traefik.http.middlewares.auth.basicauth.users=guillem:$$2y$$05$$CKUMDlEXCjLDemTqkyrgweIIEYdP1shFk7xU4OyktO0KRatBO3KtW"
       # Theia
       - "traefik.http.routers.theia.service=theia"
-      - "traefik.http.routers.theia.rule=Host(`161.116.84.128`) && PathPrefix(`/guillem/ide/`)"
+      - "traefik.http.routers.theia.rule=(Host(`161.116.84.128`) && PathPrefix(`/guillem/ide/`)) || Host(`ide.guillem.damnserver.com`)"
       - "traefik.http.services.theia.loadbalancer.server.port=8080"
       - "traefik.http.routers.theia.middlewares=auth,theia-stripprefix"
       - "traefik.http.middlewares.theia-stripprefix.stripprefix.prefixes=/guillem/ide"
       # Jupyter
       - "traefik.http.routers.jupyter.service=jupyter"
-      - "traefik.http.routers.jupyter.rule=Host(`161.116.84.128`) && PathPrefix(`/guillem/jupyter/`)"
+      - "traefik.http.routers.jupyter.rule=(Host(`161.116.84.128`) && PathPrefix(`/guillem/jupyter/`)) || Host(`jupyter.guillem.damnserver.com`)"
       - "traefik.http.services.jupyter.loadbalancer.server.port=8888"
       - "traefik.http.routers.jupyter.middlewares=auth"
-
+      # Tensorboard
+      - "traefik.http.routers.tensorboard.service=tensorboard"
+      - "traefik.http.routers.tensorboard.rule=(Host(`161.116.84.128`) && PathPrefix(`/guillem/tensorboard/`)) || Host(`tensorboard.guillem.damnserver.com`)"
+      - "traefik.http.services.tensorboard.loadbalancer.server.port=6006"
+      - "traefik.http.routers.tensorboard.middlewares=auth,tensorboard-stripprefix"
+      - "traefik.http.middlewares.tensorboard-stripprefix.stripprefix.prefixes=/guillem/tensorboard"
