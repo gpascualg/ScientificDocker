@@ -4,6 +4,7 @@ services:
   traefik:
     image: traefik
     container_name: traefik
+    restart: always
     command: 
       - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
@@ -15,22 +16,22 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro # So that Traefik can listen to the Docker events
 
   guillem:
-    image: registry.damnserver.com:443/deepstack:tf-2.0
+    image: registry.damnserver.com:443/deepstack:tf-2.2
     build: '.'
+    restart: always
     volumes:
       - /notebooks:/notebooks
       - /data:/data
+      - vscode-server-insiders:/root/.vscode-server-insiders:rw
+      - vscode-server:/root/.vscode-server:rw
     environment:
       - JUPYTER_PASSWORD=
       - USERNAME=guillem
-      - GITHUB_URLS=(
-            "-b tf-2.0 https://github.com/gpascualg/SenseTheFlow.git"
-        )
-      - PIP_LIBRARIES=(
-            "git+https://www.github.com/farizrahman4u/keras-contrib.git"
-        )
+    ports:
+      - "2200:22"
     depends_on:
       - traefik
+      - ssh-keys
     links:
       - traefik
     runtime: nvidia
@@ -54,3 +55,17 @@ services:
       - "traefik.http.services.tensorboard.loadbalancer.server.port=6006"
       - "traefik.http.routers.tensorboard.middlewares=auth,tensorboard-stripprefix"
       - "traefik.http.middlewares.tensorboard-stripprefix.stripprefix.prefixes=/guillem/tensorboard"
+      - "ENABLE_SSH=gpascualg93@gmail.com:qwfparst"
+
+  ssh-keys:
+    image: registry.damnserver.com:443/ssh-keys:0.1
+    build: ./ssh_keys
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./ssh_keys:/keys
+
+volumes:
+  vscode-server-insiders:
+    driver: local
+  vscode-server:
+    driver: local
