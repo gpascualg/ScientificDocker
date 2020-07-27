@@ -128,9 +128,9 @@ RUN conda install \
 		-c conda-forge -y && \
 	jupyter nbextension enable --py widgetsnbextension && \
 	jupyter labextension install @jupyter-widgets/jupyterlab-manager@2.0 && \
-	pip install -y --upgrade \
-		pyqtree=1.0.0 \
-		tensorflow-probability=0.10.1 \
+	pip install --upgrade \
+		pyqtree==1.0.0 \
+		tensorflow-probability==0.10.1 \
 		git+https://github.com/gpascualg/SenseTheFlow.git@tf-2.0
 
 # Permanent volumnes #

@@ -7,6 +7,8 @@ __pycache__/
 # No SSH keys should ever be recorded
 ssh_keys/*
 !ssh_keys/.gitkeep
+!ssh_keys/main.py
+!ssh_keys/Dockerfile
 
 # No run files except for the template
 run_files/*

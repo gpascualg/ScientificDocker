@@ -38,12 +38,6 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.middlewares.auth.basicauth.users=guillem:$$2y$$05$$CKUMDlEXCjLDemTqkyrgweIIEYdP1shFk7xU4OyktO0KRatBO3KtW"
-      # Theia
-      - "traefik.http.routers.theia.service=theia"
-      - "traefik.http.routers.theia.rule=(Host(`161.116.84.128`) && PathPrefix(`/guillem/ide/`)) || Host(`ide.guillem.damnserver.com`)"
-      - "traefik.http.services.theia.loadbalancer.server.port=8080"
-      - "traefik.http.routers.theia.middlewares=auth,theia-stripprefix"
-      - "traefik.http.middlewares.theia-stripprefix.stripprefix.prefixes=/guillem/ide"
       # Jupyter
       - "traefik.http.routers.jupyter.service=jupyter"
       - "traefik.http.routers.jupyter.rule=(Host(`161.116.84.128`) && PathPrefix(`/guillem/jupyter/`)) || Host(`jupyter.guillem.damnserver.com`)"
@@ -60,6 +54,7 @@ services:
   ssh-keys:
     image: registry.damnserver.com:443/ssh-keys:0.1
     build: ./ssh_keys
+    restart: always
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ./ssh_keys:/keys
