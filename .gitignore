@@ -23,3 +23,6 @@ registry/registry/auth
 
 # Build auxiliar output
 nohup.out
+
+# Default docker-compose.yml
+docker-compose.yml

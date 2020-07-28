@@ -125,9 +125,13 @@ RUN conda install \
 		matplotlib=3.3.0 \
 		jupyterlab=2.2.0 \
 		ipywidgets=7.5.1 \
+		pylint=2.5.3 \
+		xeus-python=0.8.3 \
+		ptvsd=4.3.2 \
 		-c conda-forge -y && \
 	jupyter nbextension enable --py widgetsnbextension && \
 	jupyter labextension install @jupyter-widgets/jupyterlab-manager@2.0 && \
+	jupyter labextension install @jupyterlab/debugger && \
 	pip install --upgrade \
 		pyqtree==1.0.0 \
 		tensorflow-probability==0.10.1 \
@@ -228,4 +232,3 @@ jupyter-lab /notebooks --allow-root --config=/etc/jupyter-notebook.py &>/dev/nul
 ###############
 # Run from within the environment
 ENTRYPOINT ["conda", "run", "-n", "tf-gpu", "/bin/bash", "-c", "/opt/run_docker.sh"]
-
