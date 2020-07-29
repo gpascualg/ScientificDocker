@@ -1,0 +1,21 @@
+*.pyc
+__pycache__/
+.ipynb_checkpoints/
+.vscode/
+.vs/
+
+# No SSH keys should ever be recorded
+ssh_keys/*
+!ssh_keys/.gitkeep
+!ssh_keys/main.py
+!ssh_keys/Dockerfile
+
+# Private certificates & auth
+registry/registry/*.key
+registry/registry/auth
+
+# Build auxiliar output
+nohup.out
+
+# Default docker-compose.yml
+docker-compose.yml

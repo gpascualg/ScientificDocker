@@ -1,0 +1,66 @@
+version: '2.3'
+
+services:
+  traefik:
+    image: traefik
+    container_name: traefik
+    restart: always
+    command: 
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      #- "--log.level=debug"
+    ports:
+      - "80:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro # So that Traefik can listen to the Docker events
+
+  guillem:
+    image: scilab:tf2.2
+    build: '.'
+    restart: always
+    volumes:
+      - /notebooks:/notebooks
+      - /data:/data
+      - vscode-server-insiders:/root/.vscode-server-insiders:rw
+      - vscode-server:/root/.vscode-server:rw
+    environment:
+      - JUPYTER_PASSWORD=
+      - USERNAME=$USER
+    ports:
+      - "2200:22"
+    depends_on:
+      - traefik
+      - ssh-keys
+    links:
+      - traefik
+    runtime: nvidia
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.auth.basicauth.users=$PASSWD"
+      # Jupyter
+      - "traefik.http.routers.jupyter.service=jupyter"
+      - "traefik.http.routers.jupyter.rule=(Host(`$HOSTNAME_IP`) && PathPrefix(`$JUPYTER_PATH`)) || Host(`jupyter.$HOSTNAME`)"
+      - "traefik.http.services.jupyter.loadbalancer.server.port=8888"
+      - "traefik.http.routers.jupyter.middlewares=auth"
+      # Tensorboard
+      - "traefik.http.routers.tensorboard.service=tensorboard"
+      - "traefik.http.routers.tensorboard.rule=(Host(`$HOSTNAME_IP`) && PathPrefix(`$TENSORBOARD_PATH/`)) || Host(`tensorboard.$HOSTNAME`)"
+      - "traefik.http.services.tensorboard.loadbalancer.server.port=6006"
+      - "traefik.http.routers.tensorboard.middlewares=auth,tensorboard-stripprefix"
+      - "traefik.http.middlewares.tensorboard-stripprefix.stripprefix.prefixes=$TENSORBOARD_PATH"
+      - "ENABLE_SSH=$USER_MAIL:$SSH_PASSWD"
+
+  ssh-keys:
+    image: ssh-keys:0.1
+    build: ./ssh_keys
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./ssh_keys:/keys
+
+volumes:
+  vscode-server-insiders:
+    driver: local
+  vscode-server:
+    driver: local

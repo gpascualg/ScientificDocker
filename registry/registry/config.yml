@@ -1,0 +1,13 @@
+version: 0.1
+storage:
+  filesystem:
+http:
+  addr: 0.0.0.0:443
+  host: https://registry.damnserver.com
+  tls:
+    certificate: /etc/docker/registry/server.crt
+    key: /etc/docker/registry/server.key
+auth:
+  htpasswd:
+    realm: registry-realm
+    path: /etc/docker/registry/auth
