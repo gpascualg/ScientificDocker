@@ -131,7 +131,7 @@ RUN git clone https://github.com/facebook/rocksdb.git && \
 # Enable SSH access
 ARG ENABLE_SSH=1
 ENV ENBALE_SSH=${ENABLE_SSH}
-RUN test ${ENABLE_SSH} -eq 1 && \
+RUN test "${ENABLE_SSH}" -eq 1 && \
 ( \
 	apt update && \
 	apt install -y openssh-server && \
@@ -176,9 +176,11 @@ RUN conda install \
 		pyqtree==1.0.0 \
 		tensorflow-probability==0.10.1 \
 		jupyter-lsp==0.9.0 \
-		nbresuse==0.3.6 \
 		git+https://github.com/deathbeds/jupyterlab-starters@v0.5.0a0 \
 		git+https://github.com/gpascualg/SenseTheFlow.git@tf-2.0
+
+# I like nbreuse + topbar but it is way to laggy
+# nbresuse==0.3.6 \
 
 # Pre "jupyter lab build" packages
 RUN conda install \
@@ -191,11 +193,13 @@ RUN jupyter nbextension enable --py widgetsnbextension && \
 	jupyter labextension install --no-build @jupyter-widgets/jupyterlab-manager@2.0 && \
 	jupyter labextension install --no-build @jupyterlab/debugger && \
 	jupyter labextension install --no-build @krassowski/jupyterlab-lsp && \
-	jupyter labextension install --no-build @mohirio/jupyterlab-horizon-theme && \
-	jupyter labextension install --no-build jupyterlab-topbar-extension jupyterlab-system-monitor && \
-	jupyter labextension install --no-build @aquirdturtle/collapsible_headings && \
-	jupyter labextension install --no-build @deathbeds/jupyterlab-starters && \
 	jupyter lab build
+
+# Other extensions that make jupyterlab too laggy
+	#jupyter labextension install --no-build @mohirio/jupyterlab-horizon-theme && \
+	#jupyter labextension install --no-build jupyterlab-topbar-extension jupyterlab-system-monitor && \
+	#jupyter labextension install --no-build @aquirdturtle/collapsible_headings && \
+	#jupyter labextension install --no-build @deathbeds/jupyterlab-starters && \
 
 # Packages needed after labextensions
 RUN pip install \
