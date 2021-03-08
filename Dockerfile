@@ -3,7 +3,7 @@
 # ARGs for FROM
 ARG UBUNTU_VERSION=18.04
 ARG ARCH=
-ARG CUDA=10.1
+ARG CUDA=11.0
 
 FROM nvidia/cuda${ARCH:+-$ARCH}:${CUDA}-base-ubuntu${UBUNTU_VERSION}
 MAINTAINER Guillem Pascual <gpascualg93@gmail.com>
@@ -11,9 +11,11 @@ MAINTAINER Guillem Pascual <gpascualg93@gmail.com>
 # ARGs for build
 ARG ARCH
 ARG CUDA
-ARG CUDNN=7.6.4.38-1
-ARG CUDNN_MAJOR_VERSION=7
+ARG CUDNN=8.0.4.30-1
+ARG CUDNN_MAJOR_VERSION=8
 ARG LIB_DIR_PREFIX=x86_64
+ARG LIBNVINFER=7.1.3-1
+ARG LIBNVINFER_MAJOR_VERSION=7
 ARG DEV=0
 
 # String substitution
@@ -33,14 +35,13 @@ RUN apt update && \
 		build-essential \
 		checkinstall \
 		cuda-command-line-tools-${CUDA/./-} \
-		cuda-cudart-${CUDA/./-} \
-		cuda-cufft-${CUDA/./-} \
-		cuda-curand-${CUDA/./-} \
-		cuda-cusolver-${CUDA/./-} \
-		cuda-cusparse-${CUDA/./-} \
-		cuda-license-${CUDA/./-} \
-		libcublas${CUDA%.*}=$(/opt/get_version.sh libcublas${CUDA%.*} ${CUDA} ${CUDA}.9999999999) \
-		libcudnn7=${CUDNN}+cuda${CUDA} \
+	        libcublas-${CUDA/./-} \
+		cuda-nvrtc-${CUDA/./-} \
+		libcufft-${CUDA/./-} \
+		libcurand-${CUDA/./-} \
+		libcusolver-${CUDA/./-} \
+		libcusparse-${CUDA/./-} \
+		libcudnn8=${CUDNN}+cuda${CUDA} \
 		libreadline-gplv2-dev \
 		libncursesw5-dev \
 		libssl-dev \
@@ -78,15 +79,24 @@ RUN apt update && \
 			cuda-cusolver-dev-${CUDA/./-} \
 			cuda-cusparse-dev-${CUDA/./-} \
 			libcublas-dev=$(/opt/get_version.sh libcublas-dev ${CUDA} ${CUDA}.9999999999) \
-			libcudnn7-dev=${CUDNN}+cuda${CUDA} \
+			libcudnn8-dev=${CUDNN}+cuda${CUDA} \
 	) || test ${DEV} -eq 0 \
 )
 
+# Install TensorRT if not building for PowerPC
+RUN [[ "${ARCH}" = "ppc64le" ]] || { apt-get update && \
+        apt-get install -y --no-install-recommends libnvinfer${LIBNVINFER_MAJOR_VERSION}=${LIBNVINFER}+cuda${CUDA} \
+        libnvinfer-plugin${LIBNVINFER_MAJOR_VERSION}=${LIBNVINFER}+cuda${CUDA} \
+        && apt-get clean \
+        && rm -rf /var/lib/apt/lists/*; }
+
 # NodeJS
-ARG NODEJS_VERSION=10.16.3
+ARG NODEJS_VERSION=15.11.0
 RUN wget -O /opt/node.tar.xz https://nodejs.org/dist/v${NODEJS_VERSION}/node-v${NODEJS_VERSION}-linux-x64.tar.xz && \
 	cd /opt && \
 	tar xf node.tar.xz
+ENV PATH=/opt/node-v${NODEJS_VERSION}-linux-x64/bin:$PATH
+ENV LD_LIBRARY_PATH=/opt/node-v${NODEJS_VERSION}-linux-x64/lib:$LD_LIBRARY_PATH
 
 # Install miniconda
 RUN wget -O /opt/miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh && \
@@ -96,11 +106,25 @@ RUN wget -O /opt/miniconda.sh https://repo.anaconda.com/miniconda/Miniconda3-lat
 
 # Export path
 ENV PATH=/root/bin:/root/.local/bin:/opt/node-v${NODEJS_VERSION}-linux-x64/bin:/usr/local/bin:/opt/miniconda/bin:$PATH
-ENV LD_LIBRARY_PATH=/usr/lib64:/usr/lib/x86_64-linux-gnu:/usr/local/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/lib64/stubs:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH=/usr/lib64:/usr/lib/x86_64-linux-gnu:/usr/local/lib:/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda/lib64:$LD_LIBRARY_PATH
+ENV LANG C.UTF-8
 
-# Install tensorflow
-RUN conda create -n tf-gpu tensorflow-gpu
-SHELL ["conda", "run", "-n", "tf-gpu", "/bin/bash", "-c"]
+# Install tensorflow environment
+#RUN conda create -n tf-gpu tensorflow-gpu
+#SHELL ["conda", "run", "-n", "tf-gpu", "/bin/bash", "-c"]
+#RUN conda-env config vars set PATH=/opt/node-v${NODEJS_VERSION}-linux-x64/bin:$PATH
+
+# Temporarily install latest via pip
+RUN pip install \
+	absl-py==0.11.0 \
+	tensorflow==2.4.1 \
+	tensorflow-addons==0.12.1 \
+	tensorflow-datasets==4.1.0 \
+	tensorflow-probability==0.12.1 \
+	tensorboard==2.4.1 \
+	tensorboard-plugin-wit==1.8.0 \
+	tensorboard-plugin-netron==0.2.0 \
+	keras-preprocessing==1.1.2
 
 # Permanent volumnes #
 ######################
@@ -145,55 +169,53 @@ RUN test "${ENABLE_SSH}" -eq 1 && \
 
 # Conda/pip packages
 RUN conda install \
-		pillow=7.2.0 \
-		h5py=2.10.0 \
-		mock=4.0.2 \
-		scipy=1.5.2 \
-		scikit-learn=0.23.1 \
-		scikit-image=0.17.2 \
+		pillow=8.1.1 \
+		h5py=3.1.0 \
+		mock=4.0.3 \
+		scipy=1.6.0 \
+		scikit-learn=0.24.1 \
+		scikit-image=0.18.1 \
 		future=0.18.2 \
 		portpicker=1.3.1 \
-		tqdm=4.48.0 \
-		seaborn=0.10.1 \
+		tqdm=4.58.0 \
+		seaborn=0.11.1 \
 		selenium=3.141.0 \
-		pandas=1.0.5 \
-		xlrd=1.2.0 \
-		numpy=1.19.1 \
-		networkx=2.4 \
+		pandas=1.2.3 \
+		xlrd=2.0.1 \
+		numpy=1.20.1 \
+		networkx=2.5 \
 		imageio=2.9.0 \
-		opencv=4.4.0 \
-		pyyaml=5.3.1 \
+		opencv=4.5.1 \
+		pyyaml=5.4.1 \
 		semantic_version=2.8.5 \
-		matplotlib=3.3.0 \
-		jupyterlab=2.2.0 \
-		ipywidgets=7.5.1 \
-		pylint=2.5.3 \
-		xeus-python=0.8.3 \
+		matplotlib=3.3.4 \
+		jupyterlab=3.0.9 \
+		jupyterlab-lsp=3.4.1 \
+		ipywidgets=7.6.3 \
+		pylint=2.7.2 \
+		xeus-python=0.11.2 \
 		ptvsd=4.3.2 \
 		cookiecutter==1.7.2 \
 		-c conda-forge -y && \
 	pip install --upgrade \
 		pyqtree==1.0.0 \
-		tensorflow-probability==0.10.1 \
-		jupyter-lsp==0.9.0 \
-		git+https://github.com/deathbeds/jupyterlab-starters@v0.5.0a0 \
+		jupyter-starters==1.0.1a0 \
 		git+https://github.com/gpascualg/SenseTheFlow.git@tf-2.0
 
 # I like nbreuse + topbar but it is way to laggy
 # nbresuse==0.3.6 \
 
 # Pre "jupyter lab build" packages
-RUN conda install \
-		jupyterlab-git==0.20.0 \
-		-c conda-forge -y
+RUN pip install \
+	jupyterlab-git==0.23.3 \
+	git+https://github.com/krassowski/python-language-server.git@main
 
 # Jupyter extensions, make sure the first node to be found is the newest one
-RUN conda-env config vars set PATH=/opt/node-v${NODEJS_VERSION}-linux-x64/bin:$PATH 
-RUN jupyter nbextension enable --py widgetsnbextension && \
-	jupyter labextension install --no-build @jupyter-widgets/jupyterlab-manager@2.0 && \
-	jupyter labextension install --no-build @jupyterlab/debugger && \
-	jupyter labextension install --no-build @krassowski/jupyterlab-lsp && \
-	jupyter lab build
+#RUN jupyter nbextension enable --py widgetsnbextension && \
+#	jupyter labextension install --no-build @jupyter-widgets/jupyterlab-manager@2.0 && \
+#	jupyter labextension install --no-build @jupyterlab/debugger && \
+#	jupyter labextension install --no-build @krassowski/jupyterlab-lsp && \
+#	jupyter lab build
 
 # Other extensions that make jupyterlab too laggy
 	#jupyter labextension install --no-build @mohirio/jupyterlab-horizon-theme && \
@@ -203,20 +225,22 @@ RUN jupyter nbextension enable --py widgetsnbextension && \
 
 # Packages needed after labextensions
 RUN pip install \
-		python-language-server==0.34.1 \
 		pycodestyle==2.6.0 \
-		autopep8==1.5.3 \
-		pydocstyle==5.0.2 \
+		autopep8==1.5.5 \
+		pydocstyle==5.1.1 \
 		pyflakes==2.2.0 \
-		rope==0.17.0 \
+		rope==0.18.0 \
 		yapf==0.30.0 \
-		ujson==1.35 \
-		jedi==0.17.2 \
 		parso==0.7.1
+
+# Hotfix keras h5 errors, tf numpy requirements
+RUN pip install --force-reinstall --upgrade \
+	h5py==2.10.0 \
+	numpy==1.19.2
 
 # jupyterlab-lsp configuration, but disable it until it supports JLAB 2.2
 ADD ./docker-data/pycodestyle /root/.config/pycodestyle
-RUN jupyter labextension disable @krassowski/jupyterlab-lsp
+#RUN jupyter labextension disable @krassowski/jupyterlab-lsp
 
 # Copy templates for jupyterlab-starters, if any
 ADD ./docker-data/templates/* /templates/*
@@ -230,25 +254,25 @@ RUN echo -e "#!/bin/bash\n\
 echo 'Allow more inotify watches'\n\
 sysctl fs.inotify.max_user_watches=524288\n\
 echo 'Generating config'\n\
-jupyter-notebook --allow-root --generate-config --config=/etc/jupyter_notebook_config.py\n\
-echo 'Replacing config with password'\n\
-sed -i \ \n\
-	-e \"s/^# *c.NotebookApp.ip = 'localhost'$/c.NotebookApp.ip = '0.0.0.0'/\" \ \n\
-	-e \"s/^# *c.NotebookApp.port = 8888$/c.NotebookApp.port = 8888/\" \ \n\
-	-e \"s/^# *c.NotebookApp.open_browser = True$/c.NotebookApp.open_browser = False/\" \ \n\
-	-e \"s/^# *c.IPKernelApp.matplotlib = None$/c.IPKernelApp.matplotlib = 'inline'/\" \ \n\
-	-e \"s/^# *c.NotebookApp.password = u''$/c.NotebookApp.password = u'\$JUPYTER_PASSWORD'/\" \ \n\
-	-e \"s/^# *c.NotebookApp.password = ''$/c.NotebookApp.password = '\$JUPYTER_PASSWORD'/\" \ \n\
-	-e \"s/^# *c.NotebookApp.token = '<generated>'$/c.NotebookApp.token = ''/\" \ \n\
-	-e \"s/^# *c.IPKernelApp.extensions = \[\]$/c.IPKernelApp.extensions = ['version_information']/\" \ \n\
-	/etc/jupyter_notebook_config.py \n\
-test \"\${ENABLE_JUPYTER_BASE_DIR}\" -eq 1 && (\n\
+jupyter-notebook -y --allow-root --generate-config --config=/etc/jupyter_notebook_config.py\n\
+echo 'Settings config'\n\
+echo \"c.NotebookApp.open_browser = False\" >> /etc/jupyter_notebook_config.py\n\
+echo \"c.IPKernelApp.matplotlib ='inline'\" >> /etc/jupyter_notebook_config.py\n\
+echo \"c.ServerApp.ip = '0.0.0.0'\" >> /etc/jupyter_notebook_config.py\n\
+echo \"c.ServerApp.port = 8888\" >> /etc/jupyter_notebook_config.py\n\
+echo \"c.ServerApp.open_browser = False\" >> /etc/jupyter_notebook_config.py\n\
+echo \"c.ServerApp.password = '\$JUPYTER_PASSWORD'\" >> /etc/jupyter_notebook_config.py\n\
+echo \"c.ServerApp.token = ''\" >> /etc/jupyter_notebook_config.py\n\
+echo \"c.Completer.use_jedi = False\" >> /etc/jupyter_notebook_config.py\n\
+if [ \"\${ENABLE_JUPYTER_BASE_DIR}\" = \"1\" ]\n\
+then\n\
 	sed -i \ \n\
 		-e \"s/^# *c.NotebookApp.base_url = '\/'$/c.NotebookApp.base_url = '\/\$USERNAME\/jupyter\/'/\" \ \n\
-		/etc/jupyter_notebook_config.py\n\
-) || true\n\
+		/etc/jupyter_notebook_config.py \n\
+fi\n\
 # Fetch global libraries from GIT \n\
 cd /opt/python-libs/\n\
+echo \"Checking Github\"\n\
 eval \"GITHUB_URLS=\$GITHUB_URLS\"\n\
 for url in \"\${GITHUB_URLS[@]}\"\n\
 do\n\
@@ -257,12 +281,14 @@ do\n\
 done\n\
 cd /\n\
 # Fetch extra pip libraies\n\
+echo \"Checking Pip\"\n\
 eval \"PIP_LIBRARIES=\$PIP_LIBRARIES\"\n\
 for lib in \"\${PIP_LIBRARIES[@]}\"\n\
 do\n\
     echo Installing pip \$lib\n\
     pip install -y \$lib\n\
 done\n\
+echo \"Checking Conda\"\n\
 eval \"CONDA_LIBRARIES=\$CONDA_LIBRARIES\"\n\
 for lib in \"\${CONDA_LIBRARIES[@]}\"\n\
 do\n\
@@ -271,16 +297,17 @@ do\n\
 done\n\
 # SSH \n\
 test \"${ENABLE_SSH}\" -eq 1 && /usr/sbin/sshd || true\n\
-# Config UI variables\n\
-export MEM_USED=\"\$(( (\$(grep MemTotal /proc/meminfo | awk '{print \$2}') - \$(grep MemAvailable /proc/meminfo | awk '{print \$2}')) * 1024 ))\"\n\
-export MEM_LIMIT=\"\$(( \$(grep MemTotal /proc/meminfo | awk '{print \$2}') * 1024 - \$MEM_USED ))\"\n\
-export CPU_LIMIT=\"\$(( \$(nproc) * 10000 )).\"\n\
 # Start \n\
-jupyter-lab /notebooks --allow-root --config=/etc/jupyter_notebook_config.py --NotebookApp.ResourceUseDisplay.track_cpu_percent=True &>/tmp/jupyter.log" > /opt/run_docker.sh.tpl && \
+echo \"Starting Jupyter\"\n\
+PATH=/opt/node-v10.16.3-linux-x64/bin:$PATH jupyter-lab /notebooks --allow-root --config=/etc/jupyter_notebook_config.py 2>&1 | tee /tmp/jupyter.log" > /opt/run_docker.sh.tpl && \
 	sed 's/ *$//' /opt/run_docker.sh.tpl > /opt/run_docker.sh && \
 	chmod +x /opt/run_docker.sh
+
+# Custom python folder
+RUN mkdir /opt/python-libs
+ENV PYTHONPATH=/opt/python-libs:$PYTHONPATH
 
 ###############
 # Run from within the environment
 ENV PYTHONUNBUFFERED=1
-ENTRYPOINT ["conda", "run", "-n", "tf-gpu", "/bin/bash", "-c", "/opt/run_docker.sh"]
+ENTRYPOINT ["/opt/run_docker.sh"]

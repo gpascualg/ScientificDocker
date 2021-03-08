@@ -25,6 +25,7 @@ def send_file(cnt, file_name, file_path, dest):
         pw_tarstream = BytesIO()
         pw_tar = tarfile.TarFile(fileobj=pw_tarstream, mode='w')
         tarinfo = tarfile.TarInfo(name=file_name)
+        tarinfo.mode = 0o400
         tarinfo.size = size
         tarinfo.mtime = time.time()
         pw_tar.addfile(tarinfo, fp)
