@@ -303,9 +303,17 @@ PATH=/opt/node-v10.16.3-linux-x64/bin:$PATH jupyter-lab /notebooks --allow-root 
 	sed 's/ *$//' /opt/run_docker.sh.tpl > /opt/run_docker.sh && \
 	chmod +x /opt/run_docker.sh
 
+# Last-time additions
+# CV2 dependencies
+RUN apt-get update && \
+	apt-get install ffmpeg libsm6 libxext6  -y
+
 # Custom python folder
 RUN mkdir /opt/python-libs
 ENV PYTHONPATH=/opt/python-libs:$PYTHONPATH
+
+# Trigger updates without recompiling everything
+RUN pip3 install --upgrade git+https://github.com/gpascualg/SenseTheFlow.git@tf-2.0
 
 ###############
 # Run from within the environment
