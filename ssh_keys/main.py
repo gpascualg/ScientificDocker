@@ -9,13 +9,16 @@ from io import BytesIO
 client = docker.from_env()
 containers = set()
 
-def get_ssh_key(name, email, password, id):
+def get_ssh_key(name, algo, email, password, id):
     file_path = f'/keys/{name}'
 
     if not os.path.exists(file_path + '.pub'):
-        print(f"\tGenerating SSH key for {name} ({id})")
-        subprocess.run(['ssh-keygen', '-t', 'rsa', '-b', '4096', '-f', file_path, '-C', email, '-N', password])
-        
+        print(f"\tGenerating {algo} SSH key for {name} ({id})")
+        if algo == 'rsa':
+            subprocess.run(['ssh-keygen', '-t', 'rsa', '-b', '4096', '-f', file_path, '-C', email, '-N', password])
+        else:
+            subprocess.run(['ssh-keygen', '-t', 'ed25519', '-f', file_path, '-C', email, '-N', password])
+
     return name, file_path
 
 def send_file(cnt, file_name, file_path, dest):
@@ -30,7 +33,7 @@ def send_file(cnt, file_name, file_path, dest):
         tarinfo.mtime = time.time()
         pw_tar.addfile(tarinfo, fp)
         pw_tar.close()
-    
+
     pw_tarstream.seek(0)
     print(f"\tSending {file_name}")
     cnt.put_archive(dest, pw_tarstream)
@@ -40,24 +43,37 @@ def parse_cnt(cnt):
 
     needs_machine_fingerprint = False
     for name, value in cnt.labels.items():
-        if name == 'ENABLE_SSH':
+        if name in ('ENABLE_SSH', 'GENERATE_KEY'):
             # Signal we need to send it
             needs_machine_fingerprint = True
 
             # Generate user SSH key
-            email, password = value.split(':', 1)
+            email, password, user, algo = value.split(':')
+            user = 'root' if not user else user
+            home = '/root' if user == 'root' else '/home/' + user
             ssh_name = email.replace('@', '_at_')
-            ssh_name, ssh_path = get_ssh_key(ssh_name, email, password, cnt.id)
-            print(f"\tSending SSH key to {cnt.name} ({cnt.id})")
-            send_file(cnt, ssh_name + '.pub', ssh_path + '.pub', '/root/.ssh/')
-            cnt.exec_run(f'/bin/bash -c "cat > /root/.ssh/authorized_keys < /root/.ssh/{ssh_name}.pub"')
+            ssh_name, ssh_path = get_ssh_key(ssh_name, algo, email, password, cnt.id)
+            print(f"\tSending {algo} SSH key to {cnt.name} ({cnt.id})")
+
+            if name == 'ENABLE_SSH':
+                send_file(cnt, ssh_name + '.pub', ssh_path + '.pub', home + '/.ssh/')
+                cnt.exec_run(f'sudo chmod 600 {home}/.ssh/{ssh_name}.pub')
+                cnt.exec_run(f'sudo chown {user}:{user} {home}/.ssh/{ssh_name}.pub')
+                cnt.exec_run(f'/bin/bash -c "cat > {home}/.ssh/authorized_keys < {home}/.ssh/{ssh_name}.pub"')
+            else:
+                send_file(cnt, ssh_name, ssh_path, home + '/.ssh/')
+                cnt.exec_run(f'sudo chmod 600 {home}/.ssh/{ssh_name}')
+                cnt.exec_run(f'sudo chown {user}:{user} {home}/.ssh/{ssh_name}')
 
     # Generate machine identity / ssh fingerprint
     if needs_machine_fingerprint:
-        ssh_name, ssh_path = get_ssh_key(cnt.name + "_ssh_host_rsa_key", email, password, cnt.id)
+        ssh_name, ssh_path = get_ssh_key(cnt.name + "_ssh_host_rsa_key", 'rsa', email, password, cnt.id)
         print(f"\tSending ssh_host_rsa_key key to {cnt.name} ({cnt.id})")
         send_file(cnt, 'ssh_host_rsa_key', ssh_path, '/etc/ssh/')
         send_file(cnt, 'ssh_host_rsa_key.pub', ssh_path + '.pub', '/etc/ssh/')
+
+        # EXECUTE sshd
+        cnt.exec_run('sudo /usr/sbin/sshd')
 
 # Allow for some leeway
 print("Starting")
